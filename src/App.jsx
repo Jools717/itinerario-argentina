@@ -17,6 +17,76 @@ import {
 
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 
+// Helper mappers between App state and Normalized Database rows
+const activityToDb = (act) => ({
+  id: act.id,
+  day_number: act.dayNumber,
+  time: act.time,
+  period: act.period,
+  title: act.title,
+  barrio: act.barrio,
+  category: act.category,
+  address: act.address || '',
+  lat: act.coords && act.coords.length === 2 ? act.coords[0] : null,
+  lng: act.coords && act.coords.length === 2 ? act.coords[1] : null,
+  description: act.description || '',
+  tip: act.tip || '',
+  with_friend: Boolean(act.withFriend),
+  completed: Boolean(act.completed),
+  cost_estimated_ars: Number(act.costEstimatedARS) || 0
+});
+
+const dbToActivity = (row) => ({
+  id: row.id,
+  dayNumber: Number(row.day_number),
+  time: row.time || '10:00',
+  period: row.period || 'mañana',
+  title: row.title,
+  barrio: row.barrio || '',
+  category: row.category || 'cultura',
+  address: row.address || '',
+  coords: (row.lat != null && row.lng != null) ? [row.lat, row.lng] : null,
+  description: row.description || '',
+  tip: row.tip || '',
+  withFriend: Boolean(row.with_friend),
+  completed: Boolean(row.completed),
+  costEstimatedARS: Number(row.cost_estimated_ars) || 0
+});
+
+const expenseToDb = (exp) => ({
+  id: exp.id,
+  date: exp.date,
+  concept: exp.concept,
+  category: exp.category,
+  amount_ars: Number(exp.amountARS) || 0,
+  paid_by: exp.paidBy || 'Yo',
+  note: exp.note || ''
+});
+
+const dbToExpense = (row) => ({
+  id: row.id,
+  date: row.date,
+  concept: row.concept,
+  category: row.category,
+  amountARS: Number(row.amount_ars) || 0,
+  paidBy: row.paid_by || 'Yo',
+  note: row.note || ''
+});
+
+const checklistToDb = (chk) => ({
+  id: chk.id,
+  text: chk.text,
+  category: chk.category,
+  completed: Boolean(chk.completed)
+});
+
+const dbToChecklist = (row) => ({
+  id: row.id,
+  text: row.text,
+  category: row.category,
+  completed: Boolean(row.completed)
+});
+
 export default function App() {
   // Persistence with LocalStorage
   const [activities, setActivities] = useState(() => {
@@ -68,10 +138,7 @@ export default function App() {
   const [editingActivity, setEditingActivity] = useState(null);
   const [modalDayNumber, setModalDayNumber] = useState(1);
 
-  // Flag to avoid loop when incoming cloud change updates state
-  const isIncomingCloudChangeRef = useRef(false);
-
-  // Sync to LocalStorage
+  // Sync to LocalStorage (Instant local responsiveness)
   useEffect(() => {
     localStorage.setItem('ba_itinerary_activities', JSON.stringify(activities));
   }, [activities]);
@@ -88,7 +155,7 @@ export default function App() {
     localStorage.setItem('ba_itinerary_exchange_rate', exchangeRate.toString());
   }, [exchangeRate]);
 
-  // SUPABASE: Initial Load & Realtime Sync
+  // SUPABASE: Load Normalized Tables & Setup Realtime Subscriptions
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
       setCloudSyncStatus('offline');
@@ -97,65 +164,111 @@ export default function App() {
 
     let isMounted = true;
 
-    async function loadCloudData() {
+    async function initSupabaseData() {
       try {
         setCloudSyncStatus('syncing');
-        const { data, error } = await supabase
-          .from('trip_data')
+
+        // 1. Fetch Activities
+        const { data: actData, error: actErr } = await supabase
+          .from('activities')
           .select('*')
-          .eq('id', 'ba-2026')
+          .order('day_number', { ascending: true })
+          .order('time', { ascending: true });
+
+        if (!actErr && actData && actData.length > 0) {
+          if (isMounted) setActivities(actData.map(dbToActivity));
+        } else if (!actErr && actData && actData.length === 0) {
+          // Populate activities table row by row for the first time
+          await supabase.from('activities').insert(INITIAL_ACTIVITIES.map(activityToDb));
+        }
+
+        // 2. Fetch Expenses
+        const { data: expData, error: expErr } = await supabase
+          .from('expenses')
+          .select('*')
+          .order('date', { ascending: false });
+
+        if (!expErr && expData && expData.length > 0) {
+          if (isMounted) setExpenses(expData.map(dbToExpense));
+        } else if (!expErr && expData && expData.length === 0) {
+          await supabase.from('expenses').insert(INITIAL_EXPENSES.map(expenseToDb));
+        }
+
+        // 3. Fetch Checklist
+        const { data: chkData, error: chkErr } = await supabase
+          .from('checklist')
+          .select('*')
+          .order('id', { ascending: true });
+
+        if (!chkErr && chkData && chkData.length > 0) {
+          if (isMounted) setChecklist(chkData.map(dbToChecklist));
+        } else if (!chkErr && chkData && chkData.length === 0) {
+          await supabase.from('checklist').insert(INITIAL_CHECKLIST.map(checklistToDb));
+        }
+
+        // 4. Fetch Settings
+        const { data: setData } = await supabase
+          .from('trip_settings')
+          .select('*')
+          .eq('id', 'config')
           .single();
 
-        if (error && error.code !== 'PGRST116') {
-          console.warn("Supabase fetch note:", error.message);
+        if (setData && setData.exchange_rate) {
+          if (isMounted) setExchangeRate(Number(setData.exchange_rate));
+        } else {
+          await supabase.from('trip_settings').upsert({ id: 'config', exchange_rate: exchangeRate });
         }
 
-        if (data && isMounted) {
-          isIncomingCloudChangeRef.current = true;
-          if (data.activities && Array.isArray(data.activities)) setActivities(data.activities);
-          if (data.expenses && Array.isArray(data.expenses)) setExpenses(data.expenses);
-          if (data.checklist && Array.isArray(data.checklist)) setChecklist(data.checklist);
-          if (data.exchange_rate) setExchangeRate(Number(data.exchange_rate));
-          setCloudSyncStatus('connected');
-          setTimeout(() => { isIncomingCloudChangeRef.current = false; }, 300);
-        } else if (!data && isMounted) {
-          // First time initialization in Supabase
-          await supabase.from('trip_data').upsert({
-            id: 'ba-2026',
-            activities,
-            expenses,
-            checklist,
-            exchange_rate: exchangeRate,
-            updated_at: new Date().toISOString()
-          });
-          setCloudSyncStatus('connected');
-        }
+        if (isMounted) setCloudSyncStatus('connected');
       } catch (err) {
-        console.error("Error loading from Supabase:", err);
+        console.error("Error connecting to Supabase tables:", err);
         if (isMounted) setCloudSyncStatus('offline');
       }
     }
 
-    loadCloudData();
+    initSupabaseData();
 
-    // Realtime subscription (Listen for changes made on other devices)
-    const channel = supabase
-      .channel('realtime:trip_data')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'trip_data', filter: 'id=eq.ba-2026' },
-        (payload) => {
-          if (payload.new && payload.new.id === 'ba-2026') {
-            isIncomingCloudChangeRef.current = true;
-            if (payload.new.activities) setActivities(payload.new.activities);
-            if (payload.new.expenses) setExpenses(payload.new.expenses);
-            if (payload.new.checklist) setChecklist(payload.new.checklist);
-            if (payload.new.exchange_rate) setExchangeRate(Number(payload.new.exchange_rate));
-            setCloudSyncStatus('connected');
-            setTimeout(() => { isIncomingCloudChangeRef.current = false; }, 300);
-          }
+    // REALTIME: Listen to individual table row changes
+    const realtimeChannel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newAct = dbToActivity(payload.new);
+          setActivities(prev => prev.some(a => a.id === newAct.id) ? prev : [...prev, newAct]);
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = dbToActivity(payload.new);
+          setActivities(prev => prev.map(a => a.id === updated.id ? updated : a));
+        } else if (payload.eventType === 'DELETE') {
+          setActivities(prev => prev.filter(a => a.id !== payload.old.id));
         }
-      )
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newExp = dbToExpense(payload.new);
+          setExpenses(prev => prev.some(e => e.id === newExp.id) ? prev : [newExp, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = dbToExpense(payload.new);
+          setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
+        } else if (payload.eventType === 'DELETE') {
+          setExpenses(prev => prev.filter(e => e.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const newChk = dbToChecklist(payload.new);
+          setChecklist(prev => prev.some(c => c.id === newChk.id) ? prev : [...prev, newChk]);
+        } else if (payload.eventType === 'UPDATE') {
+          const updated = dbToChecklist(payload.new);
+          setChecklist(prev => prev.map(c => c.id === updated.id ? updated : c));
+        } else if (payload.eventType === 'DELETE') {
+          setChecklist(prev => prev.filter(c => c.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'trip_settings' }, (payload) => {
+        if (payload.new && payload.new.exchange_rate) {
+          setExchangeRate(Number(payload.new.exchange_rate));
+        }
+      })
       .subscribe((status) => {
         if (status === 'SUBSCRIBED' && isMounted) {
           setCloudSyncStatus('connected');
@@ -164,48 +277,37 @@ export default function App() {
 
     return () => {
       isMounted = false;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(realtimeChannel);
     };
   }, []);
 
-  // Save changes to Supabase (debounced)
-  const saveToCloud = async (newActivities, newExpenses, newChecklist, newRate) => {
-    if (!isSupabaseConfigured || !supabase || isIncomingCloudChangeRef.current) return;
-    
-    setCloudSyncStatus('syncing');
-    try {
-      const { error } = await supabase.from('trip_data').upsert({
-        id: 'ba-2026',
-        activities: newActivities,
-        expenses: newExpenses,
-        checklist: newChecklist,
-        exchange_rate: newRate,
-        updated_at: new Date().toISOString()
-      });
+  // Handlers for Activities (Immediate local state + individual row DB update)
+  const handleToggleComplete = async (id) => {
+    const act = activities.find(a => a.id === id);
+    if (!act) return;
+    const newCompleted = !act.completed;
 
-      if (!error) {
-        setCloudSyncStatus('connected');
-      } else {
-        console.error("Supabase upsert error:", error);
-        setCloudSyncStatus('offline');
-      }
-    } catch (err) {
-      console.error("Cloud sync error:", err);
-      setCloudSyncStatus('offline');
+    setActivities(prev => prev.map(a => a.id === id ? { ...a, completed: newCompleted } : a));
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('activities').update({ completed: newCompleted }).eq('id', id);
+      setCloudSyncStatus('connected');
     }
   };
 
-  // Handlers for Activities
-  const handleToggleComplete = (id) => {
-    const updated = activities.map(a => a.id === id ? { ...a, completed: !a.completed } : a);
-    setActivities(updated);
-    saveToCloud(updated, expenses, checklist, exchangeRate);
-  };
+  const handleToggleWithFriend = async (id) => {
+    const act = activities.find(a => a.id === id);
+    if (!act) return;
+    const newWithFriend = !act.withFriend;
 
-  const handleToggleWithFriend = (id) => {
-    const updated = activities.map(a => a.id === id ? { ...a, withFriend: !a.withFriend } : a);
-    setActivities(updated);
-    saveToCloud(updated, expenses, checklist, exchangeRate);
+    setActivities(prev => prev.map(a => a.id === id ? { ...a, withFriend: newWithFriend } : a));
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('activities').update({ with_friend: newWithFriend }).eq('id', id);
+      setCloudSyncStatus('connected');
+    }
   };
 
   const handleOpenAddModal = (dayNumber) => {
@@ -220,27 +322,41 @@ export default function App() {
     setIsActivityModalOpen(true);
   };
 
-  const handleSaveActivity = (formData) => {
-    let updated;
+  const handleSaveActivity = async (formData) => {
     if (editingActivity) {
-      updated = activities.map(a => a.id === editingActivity.id ? { ...formData, id: editingActivity.id } : a);
+      const updated = { ...formData, id: editingActivity.id };
+      setActivities(prev => prev.map(a => a.id === editingActivity.id ? updated : a));
+
+      if (isSupabaseConfigured && supabase) {
+        setCloudSyncStatus('syncing');
+        await supabase.from('activities').update(activityToDb(updated)).eq('id', editingActivity.id);
+        setCloudSyncStatus('connected');
+      }
     } else {
       const newActivity = {
         ...formData,
         id: 'act-' + Date.now(),
       };
-      updated = [...activities, newActivity];
+      setActivities(prev => [...prev, newActivity]);
+
+      if (isSupabaseConfigured && supabase) {
+        setCloudSyncStatus('syncing');
+        await supabase.from('activities').insert(activityToDb(newActivity));
+        setCloudSyncStatus('connected');
+      }
     }
-    setActivities(updated);
-    saveToCloud(updated, expenses, checklist, exchangeRate);
     setIsActivityModalOpen(false);
   };
 
-  const handleDeleteActivity = (id) => {
+  const handleDeleteActivity = async (id) => {
     if (window.confirm("¿Seguro que deseas eliminar este plan del itinerario?")) {
-      const updated = activities.filter(a => a.id !== id);
-      setActivities(updated);
-      saveToCloud(updated, expenses, checklist, exchangeRate);
+      setActivities(prev => prev.filter(a => a.id !== id));
+
+      if (isSupabaseConfigured && supabase) {
+        setCloudSyncStatus('syncing');
+        await supabase.from('activities').delete().eq('id', id);
+        setCloudSyncStatus('connected');
+      }
     }
   };
 
@@ -250,46 +366,75 @@ export default function App() {
   };
 
   // Handlers for Expenses
-  const handleAddExpense = (expense) => {
-    const updated = [expense, ...expenses];
-    setExpenses(updated);
-    saveToCloud(activities, updated, checklist, exchangeRate);
+  const handleAddExpense = async (expense) => {
+    setExpenses(prev => [expense, ...prev]);
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('expenses').insert(expenseToDb(expense));
+      setCloudSyncStatus('connected');
+    }
   };
 
-  const handleDeleteExpense = (id) => {
-    const updated = expenses.filter(e => e.id !== id);
-    setExpenses(updated);
-    saveToCloud(activities, updated, checklist, exchangeRate);
+  const handleDeleteExpense = async (id) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('expenses').delete().eq('id', id);
+      setCloudSyncStatus('connected');
+    }
   };
 
   // Handlers for Checklist
-  const handleToggleChecklist = (id) => {
-    const updated = checklist.map(c => c.id === id ? { ...c, completed: !c.completed } : c);
-    setChecklist(updated);
-    saveToCloud(activities, expenses, updated, exchangeRate);
+  const handleToggleChecklist = async (id) => {
+    const item = checklist.find(c => c.id === id);
+    if (!item) return;
+    const newCompleted = !item.completed;
+
+    setChecklist(prev => prev.map(c => c.id === id ? { ...c, completed: newCompleted } : c));
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('checklist').update({ completed: newCompleted }).eq('id', id);
+      setCloudSyncStatus('connected');
+    }
   };
 
-  const handleAddChecklist = (item) => {
-    const updated = [...checklist, item];
-    setChecklist(updated);
-    saveToCloud(activities, expenses, updated, exchangeRate);
+  const handleAddChecklist = async (item) => {
+    setChecklist(prev => [...prev, item]);
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('checklist').insert(checklistToDb(item));
+      setCloudSyncStatus('connected');
+    }
   };
 
-  const handleDeleteChecklist = (id) => {
-    const updated = checklist.filter(c => c.id !== id);
-    setChecklist(updated);
-    saveToCloud(activities, expenses, updated, exchangeRate);
+  const handleDeleteChecklist = async (id) => {
+    setChecklist(prev => prev.filter(c => c.id !== id));
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('checklist').delete().eq('id', id);
+      setCloudSyncStatus('connected');
+    }
   };
 
-  const handleUpdateExchangeRate = (rate) => {
+  const handleUpdateExchangeRate = async (rate) => {
     setExchangeRate(rate);
-    saveToCloud(activities, expenses, checklist, rate);
+
+    if (isSupabaseConfigured && supabase) {
+      setCloudSyncStatus('syncing');
+      await supabase.from('trip_settings').upsert({ id: 'config', exchange_rate: rate });
+      setCloudSyncStatus('connected');
+    }
   };
 
   // Backup: Export & Import
   const handleExportData = () => {
     const backupData = {
-      version: "1.0",
+      version: "2.0",
       exportDate: new Date().toISOString(),
       tripInfo: TRIP_INFO,
       exchangeRate,
@@ -307,23 +452,28 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const handleImportData = (data) => {
+  const handleImportData = async (data) => {
     if (!data.activities || !Array.isArray(data.activities)) {
       alert("El archivo no tiene el formato de itinerario válido.");
       return;
     }
-    if (window.confirm("¿Deseas restaurar este itinerario? Se actualizarán tus actividades y gastos actuales.")) {
+    if (window.confirm("¿Deseas restaurar este itinerario? Se actualizarán tus actividades y gastos.")) {
       if (data.activities) setActivities(data.activities);
       if (data.expenses) setExpenses(data.expenses);
       if (data.checklist) setChecklist(data.checklist);
       if (data.exchangeRate) setExchangeRate(data.exchangeRate);
-      saveToCloud(
-        data.activities || activities, 
-        data.expenses || expenses, 
-        data.checklist || checklist, 
-        data.exchangeRate || exchangeRate
-      );
-      alert("¡Itinerario restaurado con éxito!");
+
+      if (isSupabaseConfigured && supabase) {
+        setCloudSyncStatus('syncing');
+        // Bulk upsert to Supabase tables
+        if (data.activities) await supabase.from('activities').upsert(data.activities.map(activityToDb));
+        if (data.expenses) await supabase.from('expenses').upsert(data.expenses.map(expenseToDb));
+        if (data.checklist) await supabase.from('checklist').upsert(data.checklist.map(checklistToDb));
+        if (data.exchangeRate) await supabase.from('trip_settings').upsert({ id: 'config', exchange_rate: data.exchangeRate });
+        setCloudSyncStatus('connected');
+      }
+
+      alert("¡Itinerario restaurado y sincronizado con éxito!");
     }
   };
 
