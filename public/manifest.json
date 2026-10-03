@@ -1,0 +1,22 @@
+{
+  "short_name": "BA 2026",
+  "name": "Itinerario Buenos Aires 2026",
+  "description": "Itinerario interactivo, mapas, transporte y gastos para viaje a Buenos Aires",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090d16",
+  "theme_color": "#0284c7",
+  "display": "standalone",
+  "orientation": "portrait"
+}
