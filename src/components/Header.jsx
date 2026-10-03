@@ -7,6 +7,7 @@ export default function Header({
   completedCount, 
   totalSpentARS, 
   exchangeRate, 
+  cloudSyncStatus = 'offline',
   onExportData, 
   onImportData 
 }) {
@@ -73,7 +74,24 @@ export default function Header({
             </span>
           </div>
           <div>
-            <div className="brand-badge">Viaje a Buenos Aires • Primavera 2026</div>
+            <div className="brand-badge-row">
+              <span className="brand-badge">Viaje a Buenos Aires • Primavera 2026</span>
+              {cloudSyncStatus === 'connected' && (
+                <span className="cloud-badge connected" title="Sincronizado en tiempo real con Supabase">
+                  🟢 Nube en Vivo
+                </span>
+              )}
+              {cloudSyncStatus === 'syncing' && (
+                <span className="cloud-badge syncing">
+                  🔄 Guardando...
+                </span>
+              )}
+              {cloudSyncStatus === 'offline' && (
+                <span className="cloud-badge offline" title="Guardando en la memoria del dispositivo">
+                  💾 Local
+                </span>
+              )}
+            </div>
             <h1 className="brand-title">Mi Itinerario Porteño</h1>
             <p className="brand-subtitle">
               Sábado 10 al Viernes 23 de Octubre • Quedándome con mi amiga

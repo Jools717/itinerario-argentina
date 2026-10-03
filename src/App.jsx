@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from './components/Header';
 import Navigation from './components/Navigation';
 import ItineraryView from './components/ItineraryView';
@@ -14,6 +14,8 @@ import {
   INITIAL_CHECKLIST, 
   TRIP_INFO 
 } from './data/initialData';
+
+import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 
 export default function App() {
   // Persistence with LocalStorage
@@ -53,6 +55,9 @@ export default function App() {
     }
   });
 
+  // Cloud Sync Status: 'connected' | 'syncing' | 'offline'
+  const [cloudSyncStatus, setCloudSyncStatus] = useState(isSupabaseConfigured ? 'syncing' : 'offline');
+
   // Navigation & UI state
   const [activeTab, setActiveTab] = useState('itinerario');
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
@@ -62,6 +67,9 @@ export default function App() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   const [modalDayNumber, setModalDayNumber] = useState(1);
+
+  // Flag to avoid loop when incoming cloud change updates state
+  const isIncomingCloudChangeRef = useRef(false);
 
   // Sync to LocalStorage
   useEffect(() => {
@@ -80,13 +88,124 @@ export default function App() {
     localStorage.setItem('ba_itinerary_exchange_rate', exchangeRate.toString());
   }, [exchangeRate]);
 
+  // SUPABASE: Initial Load & Realtime Sync
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setCloudSyncStatus('offline');
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadCloudData() {
+      try {
+        setCloudSyncStatus('syncing');
+        const { data, error } = await supabase
+          .from('trip_data')
+          .select('*')
+          .eq('id', 'ba-2026')
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.warn("Supabase fetch note:", error.message);
+        }
+
+        if (data && isMounted) {
+          isIncomingCloudChangeRef.current = true;
+          if (data.activities && Array.isArray(data.activities)) setActivities(data.activities);
+          if (data.expenses && Array.isArray(data.expenses)) setExpenses(data.expenses);
+          if (data.checklist && Array.isArray(data.checklist)) setChecklist(data.checklist);
+          if (data.exchange_rate) setExchangeRate(Number(data.exchange_rate));
+          setCloudSyncStatus('connected');
+          setTimeout(() => { isIncomingCloudChangeRef.current = false; }, 300);
+        } else if (!data && isMounted) {
+          // First time initialization in Supabase
+          await supabase.from('trip_data').upsert({
+            id: 'ba-2026',
+            activities,
+            expenses,
+            checklist,
+            exchange_rate: exchangeRate,
+            updated_at: new Date().toISOString()
+          });
+          setCloudSyncStatus('connected');
+        }
+      } catch (err) {
+        console.error("Error loading from Supabase:", err);
+        if (isMounted) setCloudSyncStatus('offline');
+      }
+    }
+
+    loadCloudData();
+
+    // Realtime subscription (Listen for changes made on other devices)
+    const channel = supabase
+      .channel('realtime:trip_data')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'trip_data', filter: 'id=eq.ba-2026' },
+        (payload) => {
+          if (payload.new && payload.new.id === 'ba-2026') {
+            isIncomingCloudChangeRef.current = true;
+            if (payload.new.activities) setActivities(payload.new.activities);
+            if (payload.new.expenses) setExpenses(payload.new.expenses);
+            if (payload.new.checklist) setChecklist(payload.new.checklist);
+            if (payload.new.exchange_rate) setExchangeRate(Number(payload.new.exchange_rate));
+            setCloudSyncStatus('connected');
+            setTimeout(() => { isIncomingCloudChangeRef.current = false; }, 300);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED' && isMounted) {
+          setCloudSyncStatus('connected');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Save changes to Supabase (debounced)
+  const saveToCloud = async (newActivities, newExpenses, newChecklist, newRate) => {
+    if (!isSupabaseConfigured || !supabase || isIncomingCloudChangeRef.current) return;
+    
+    setCloudSyncStatus('syncing');
+    try {
+      const { error } = await supabase.from('trip_data').upsert({
+        id: 'ba-2026',
+        activities: newActivities,
+        expenses: newExpenses,
+        checklist: newChecklist,
+        exchange_rate: newRate,
+        updated_at: new Date().toISOString()
+      });
+
+      if (!error) {
+        setCloudSyncStatus('connected');
+      } else {
+        console.error("Supabase upsert error:", error);
+        setCloudSyncStatus('offline');
+      }
+    } catch (err) {
+      console.error("Cloud sync error:", err);
+      setCloudSyncStatus('offline');
+    }
+  };
+
   // Handlers for Activities
   const handleToggleComplete = (id) => {
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, completed: !a.completed } : a));
+    const updated = activities.map(a => a.id === id ? { ...a, completed: !a.completed } : a);
+    setActivities(updated);
+    saveToCloud(updated, expenses, checklist, exchangeRate);
   };
 
   const handleToggleWithFriend = (id) => {
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, withFriend: !a.withFriend } : a));
+    const updated = activities.map(a => a.id === id ? { ...a, withFriend: !a.withFriend } : a);
+    setActivities(updated);
+    saveToCloud(updated, expenses, checklist, exchangeRate);
   };
 
   const handleOpenAddModal = (dayNumber) => {
@@ -102,21 +221,26 @@ export default function App() {
   };
 
   const handleSaveActivity = (formData) => {
+    let updated;
     if (editingActivity) {
-      setActivities(prev => prev.map(a => a.id === editingActivity.id ? { ...formData, id: editingActivity.id } : a));
+      updated = activities.map(a => a.id === editingActivity.id ? { ...formData, id: editingActivity.id } : a);
     } else {
       const newActivity = {
         ...formData,
         id: 'act-' + Date.now(),
       };
-      setActivities(prev => [...prev, newActivity]);
+      updated = [...activities, newActivity];
     }
+    setActivities(updated);
+    saveToCloud(updated, expenses, checklist, exchangeRate);
     setIsActivityModalOpen(false);
   };
 
   const handleDeleteActivity = (id) => {
     if (window.confirm("¿Seguro que deseas eliminar este plan del itinerario?")) {
-      setActivities(prev => prev.filter(a => a.id !== id));
+      const updated = activities.filter(a => a.id !== id);
+      setActivities(updated);
+      saveToCloud(updated, expenses, checklist, exchangeRate);
     }
   };
 
@@ -127,24 +251,39 @@ export default function App() {
 
   // Handlers for Expenses
   const handleAddExpense = (expense) => {
-    setExpenses(prev => [expense, ...prev]);
+    const updated = [expense, ...expenses];
+    setExpenses(updated);
+    saveToCloud(activities, updated, checklist, exchangeRate);
   };
 
   const handleDeleteExpense = (id) => {
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    const updated = expenses.filter(e => e.id !== id);
+    setExpenses(updated);
+    saveToCloud(activities, updated, checklist, exchangeRate);
   };
 
   // Handlers for Checklist
   const handleToggleChecklist = (id) => {
-    setChecklist(prev => prev.map(c => c.id === id ? { ...c, completed: !c.completed } : c));
+    const updated = checklist.map(c => c.id === id ? { ...c, completed: !c.completed } : c);
+    setChecklist(updated);
+    saveToCloud(activities, expenses, updated, exchangeRate);
   };
 
   const handleAddChecklist = (item) => {
-    setChecklist(prev => [...prev, item]);
+    const updated = [...checklist, item];
+    setChecklist(updated);
+    saveToCloud(activities, expenses, updated, exchangeRate);
   };
 
   const handleDeleteChecklist = (id) => {
-    setChecklist(prev => prev.filter(c => c.id !== id));
+    const updated = checklist.filter(c => c.id !== id);
+    setChecklist(updated);
+    saveToCloud(activities, expenses, updated, exchangeRate);
+  };
+
+  const handleUpdateExchangeRate = (rate) => {
+    setExchangeRate(rate);
+    saveToCloud(activities, expenses, checklist, rate);
   };
 
   // Backup: Export & Import
@@ -178,6 +317,12 @@ export default function App() {
       if (data.expenses) setExpenses(data.expenses);
       if (data.checklist) setChecklist(data.checklist);
       if (data.exchangeRate) setExchangeRate(data.exchangeRate);
+      saveToCloud(
+        data.activities || activities, 
+        data.expenses || expenses, 
+        data.checklist || checklist, 
+        data.exchangeRate || exchangeRate
+      );
       alert("¡Itinerario restaurado con éxito!");
     }
   };
@@ -194,6 +339,7 @@ export default function App() {
         completedCount={completedActivitiesCount}
         totalSpentARS={totalSpentARS}
         exchangeRate={exchangeRate}
+        cloudSyncStatus={cloudSyncStatus}
         onExportData={handleExportData}
         onImportData={handleImportData}
       />
@@ -231,7 +377,7 @@ export default function App() {
             onAddExpense={handleAddExpense}
             onDeleteExpense={handleDeleteExpense}
             exchangeRate={exchangeRate}
-            onUpdateExchangeRate={setExchangeRate}
+            onUpdateExchangeRate={handleUpdateExchangeRate}
           />
         )}
 

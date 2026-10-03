@@ -196,13 +196,48 @@ body {
   padding: 1px 0;
 }
 
+.brand-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.cloud-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cloud-badge.connected {
+  background: var(--pastel-mint);
+  color: var(--pastel-mint-text);
+  border: 1px solid var(--pastel-mint-border);
+}
+
+.cloud-badge.syncing {
+  background: var(--pastel-sun);
+  color: var(--pastel-sun-text);
+  border: 1px solid var(--pastel-sun-border);
+}
+
+.cloud-badge.offline {
+  background: #f1f5f9;
+  color: var(--text-dim);
+  border: 1px solid var(--border-subtle);
+}
+
 .brand-badge {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 800;
   color: #0284c7;
-  margin-bottom: 2px;
 }
 
 .brand-title {
