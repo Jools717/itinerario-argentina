@@ -293,6 +293,115 @@ body {
   color: var(--text-main);
 }
 
+/* Wallet Header Pill Widget */
+.wallet-header-pill {
+  cursor: pointer;
+  background: #ffffff;
+  border: 1px solid var(--pastel-sun-border);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.12);
+  transition: all 0.2s ease;
+  min-width: 210px;
+}
+
+.wallet-header-pill:hover {
+  transform: translateY(-1px);
+  border-color: #f59e0b;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.2);
+}
+
+.wallet-icon-wrapper {
+  background: var(--pastel-sun);
+  color: var(--pastel-sun-text);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wallet-header-pill.danger .wallet-icon-wrapper {
+  background: var(--pastel-rose);
+  color: var(--pastel-rose-text);
+}
+
+.wallet-stat-text {
+  flex: 1;
+}
+
+.wallet-labels-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.wallet-remaining-tag {
+  font-size: 10px;
+  font-weight: 800;
+  color: #059669;
+  background: var(--pastel-mint);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.wallet-header-pill.danger .wallet-remaining-tag {
+  color: #b91c1c;
+  background: var(--pastel-coral);
+}
+
+.wallet-values-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 1px;
+}
+
+.wallet-usd-val {
+  font-family: var(--font-heading);
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.usd-cap {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.wallet-ars-val {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.header-budget-track {
+  height: 4px;
+  background: #f1f5f9;
+  border-radius: 99px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.header-budget-bar {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.header-budget-bar.healthy {
+  background: linear-gradient(90deg, #10b981 0%, #38bdf8 100%);
+}
+
+.header-budget-bar.warning {
+  background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
+}
+
+.header-budget-bar.danger {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -1249,93 +1358,265 @@ body {
   gap: 20px;
 }
 
-.budget-hero-card {
+/* Billetera Cap Hero Card ($1,000 USD Blue) */
+.budget-cap-hero-card {
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  box-shadow: var(--shadow-md);
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 20px;
-  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
-  border: 1px solid #a7f3d0;
-  border-radius: var(--radius-lg);
-  padding: 22px;
-  flex-wrap: wrap;
-  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
 }
 
-.budget-hero-icon {
-  background: #ffffff;
-  width: 52px;
-  height: 52px;
+.budget-cap-hero-card.healthy {
+  border-color: #a7f3d0;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+}
+
+.budget-cap-hero-card.warning {
+  border-color: #fde68a;
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+}
+
+.budget-cap-hero-card.danger {
+  border-color: #fecdd3;
+  background: linear-gradient(135deg, #ffffff 0%, #fff1f2 100%);
+}
+
+.budget-cap-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.wallet-brand-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.wallet-avatar-badge {
+  width: 54px;
+  height: 54px;
+  background: var(--pastel-sun);
+  color: var(--pastel-sun-text);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
   flex-shrink: 0;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.15);
 }
 
-.budget-hero-text {
-  flex: 1;
-  min-width: 280px;
+.wallet-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 }
 
-.budget-hero-text h3 {
+.wallet-title-row h3 {
   font-family: var(--font-heading);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 800;
-  color: #065f46;
-  margin-bottom: 4px;
+  color: #0f172a;
 }
 
-.budget-hero-text p {
+.wallet-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.wallet-status-chip.healthy {
+  background: var(--pastel-mint);
+  color: var(--pastel-mint-text);
+  border: 1px solid var(--pastel-mint-border);
+}
+
+.wallet-status-chip.warning {
+  background: var(--pastel-sun);
+  color: var(--pastel-sun-text);
+  border: 1px solid var(--pastel-sun-border);
+}
+
+.wallet-status-chip.danger {
+  background: var(--pastel-coral);
+  color: var(--pastel-coral-text);
+  border: 1px solid var(--pastel-coral-border);
+}
+
+.wallet-subtitle {
   font-size: 13.5px;
-  color: #047857;
+  color: #475569;
   line-height: 1.5;
 }
 
-.exchange-rate-box {
+/* Dólar Blue Rate Card */
+.blue-rate-card {
   background: #ffffff;
-  border: 1px solid #a7f3d0;
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
+  border: 1px solid var(--pastel-sun-border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  gap: 8px;
 }
 
-.exchange-rate-box label {
+.blue-rate-header {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
   text-transform: uppercase;
   font-weight: 800;
-  color: #059669;
+  color: #b45309;
 }
 
-.rate-input-row {
+.blue-rate-input-row {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
   font-weight: 700;
-  color: #065f46;
+  color: #0f172a;
 }
 
-.rate-input {
+.rate-prefix, .rate-suffix {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.blue-rate-field {
   background: #f8fafc;
   border: 1px solid #cbd5e1;
   color: #0f172a;
-  font-size: 14px;
-  font-weight: 700;
-  width: 80px;
+  font-size: 15px;
+  font-weight: 800;
+  width: 90px;
   padding: 4px 8px;
   border-radius: 6px;
   outline: none;
 }
 
-.rate-input:focus {
+.blue-rate-field:focus {
   border-color: var(--border-focus);
+  background: #ffffff;
+}
+
+.rate-preset-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.preset-btn {
+  background: #f8fafc;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preset-btn:hover {
+  background: var(--pastel-sun);
+  color: var(--pastel-sun-text);
+  border-color: var(--pastel-sun-border);
+}
+
+/* Budget Cap Progress Section */
+.budget-cap-progress-section {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-labels-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.progress-left-label, .progress-right-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.spent-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.spent-ars-sub, .remaining-ars-sub {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.progress-center-pct {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0284c7;
+  background: var(--pastel-sky);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.remaining-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #059669;
+}
+
+.wallet-progress-track {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.wallet-progress-bar {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s ease;
+}
+
+.wallet-progress-bar.healthy {
+  background: linear-gradient(90deg, #10b981 0%, #38bdf8 100%);
+}
+
+.wallet-progress-bar.warning {
+  background: linear-gradient(90deg, #f59e0b 0%, #f97316 100%);
+}
+
+.wallet-progress-bar.danger {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
 }
 
 /* KPI Cards Grid */
@@ -1369,25 +1650,35 @@ body {
   text-transform: uppercase;
 }
 
-.kpi-main-value {
+.kpi-dual-values {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kpi-usd-highlight {
   font-family: var(--font-heading);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   color: #0f172a;
-  line-height: 1.15;
 }
 
-.kpi-sub-value {
-  font-size: 12px;
-  color: var(--text-muted);
+.kpi-usd-highlight small {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.kpi-ars-sub {
+  font-size: 12.5px;
   font-weight: 600;
-  margin-top: 4px;
+  color: var(--text-muted);
 }
 
-.total-card .kpi-main-value { color: #0284c7; }
-.mercado-card .kpi-main-value { color: #059669; }
-.gastro-card .kpi-main-value { color: #b45309; }
-.transport-card .kpi-main-value { color: #2563eb; }
+.total-card .kpi-usd-highlight { color: #0284c7; }
+.mercado-card .kpi-usd-highlight { color: #059669; }
+.gastro-card .kpi-usd-highlight { color: #b45309; }
+.transport-card .kpi-usd-highlight { color: #2563eb; }
 
 /* Budget Main Layout */
 .budget-main-layout {
@@ -1427,6 +1718,72 @@ body {
   gap: 14px;
 }
 
+/* Currency Selector & Input with live conversion */
+.currency-selector-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.currency-toggle-chips {
+  display: flex;
+  gap: 4px;
+}
+
+.curr-btn {
+  background: #f1f5f9;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.curr-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+.currency-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.curr-symbol {
+  position: absolute;
+  left: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.currency-input-wrapper .form-input {
+  padding-left: 64px;
+}
+
+.conversion-preview-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #0369a1;
+  flex-wrap: wrap;
+}
+
 .category-breakdown-card h4 {
   font-size: 15px;
   font-weight: 700;
@@ -1464,10 +1821,22 @@ body {
   color: #334155;
 }
 
-.cat-amount {
+.cat-amounts-dual {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   margin-left: auto;
+}
+
+.cat-amount-usd {
+  font-size: 13px;
   font-weight: 700;
   color: #0f172a;
+}
+
+.cat-amount-ars {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
 .cat-pct {
@@ -1584,16 +1953,66 @@ body {
   flex-shrink: 0;
 }
 
-.expense-amount-ars {
+.expense-amount-usd-badge {
   font-family: var(--font-heading);
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   color: #0f172a;
 }
 
-.expense-amount-usd {
+.expense-amount-usd-badge small {
+  font-size: 10px;
+  color: #0284c7;
+  font-weight: 700;
+}
+
+.expense-amount-ars-badge {
   font-size: 11.5px;
-  color: var(--text-muted);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+/* Dual Currency in Activity Cards & Live Hints */
+.dual-currency-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cost-ars {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cost-usd-blue {
+  font-size: 11px;
+  font-weight: 700;
+  color: #0284c7;
+  background: var(--pastel-sky);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--pastel-sky-border);
+}
+
+.live-currency-hint {
+  font-size: 11.5px;
+  color: #0284c7;
+  margin-top: 4px;
+}
+
+.day-cost-mini-stat {
+  background: var(--pastel-sun) !important;
+  border: 1px solid var(--pastel-sun-border);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  color: #92400e !important;
+}
+
+.day-cost-mini-stat .usd-tag {
+  color: #b45309;
+  font-weight: 700;
 }
 
 .btn-delete-expense {

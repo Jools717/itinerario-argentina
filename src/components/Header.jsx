@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Compass, Calendar, DollarSign, Download, Upload, Share2, CheckCircle2, Heart } from 'lucide-react';
+import { Calendar, Wallet, Download, Upload, Share2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { TRIP_INFO } from '../data/initialData';
+import { formatCurrencyARS, formatCurrencyUSD } from '../utils/helpers';
 
 export default function Header({ 
   activitiesCount, 
@@ -9,10 +10,16 @@ export default function Header({
   exchangeRate, 
   cloudSyncStatus = 'offline',
   onExportData, 
-  onImportData 
+  onImportData,
+  onNavigateToBudget
 }) {
   const [daysLeft, setDaysLeft] = useState(0);
   const [copiedShare, setCopiedShare] = useState(false);
+
+  const BUDGET_CAP_USD = 1000; // Tope máximo de $1,000 USD
+  const totalSpentUSD = totalSpentARS / (exchangeRate || 1280);
+  const remainingUSD = Math.max(0, BUDGET_CAP_USD - totalSpentUSD);
+  const budgetPercentage = Math.min(100, Math.round((totalSpentUSD / BUDGET_CAP_USD) * 100));
 
   useEffect(() => {
     const target = new Date(TRIP_INFO.arrivalDate);
@@ -59,6 +66,13 @@ export default function Header({
     input.click();
   };
 
+  // Status color for the budget cap progress
+  const getBudgetMeterClass = () => {
+    if (budgetPercentage >= 90) return 'danger';
+    if (budgetPercentage >= 70) return 'warning';
+    return 'healthy';
+  };
+
   return (
     <header className="app-header">
       <div className="header-backdrop-pattern"></div>
@@ -75,7 +89,7 @@ export default function Header({
           </div>
           <div>
             <div className="brand-badge-row">
-              <span className="brand-badge">Viaje a Buenos Aires • Primavera 2026</span>
+              <span className="brand-badge">Buenos Aires 2026</span>
               {cloudSyncStatus === 'connected' && (
                 <span className="cloud-badge connected" title="Sincronizado en tiempo real con Supabase">
                   🟢 Nube en Vivo
@@ -94,13 +108,14 @@ export default function Header({
             </div>
             <h1 className="brand-title">Mi Itinerario Porteño</h1>
             <p className="brand-subtitle">
-              Sábado 10 al Viernes 23 de Octubre • Quedándome con mi amiga
+              Sábado 10 al Viernes 23 de Octubre • Casa de mi amiga
             </p>
           </div>
         </div>
 
-        {/* Stats Badges */}
+        {/* Stats Badges + Interactive Wallet Widget ($1,000 USD Cap) */}
         <div className="header-stats">
+          
           <div className="stat-pill">
             <Calendar className="stat-icon text-sky" size={16} />
             <div className="stat-text">
@@ -117,15 +132,41 @@ export default function Header({
             </div>
           </div>
 
-          <div className="stat-pill">
-            <DollarSign className="stat-icon text-amber" size={16} />
-            <div className="stat-text">
-              <span className="stat-label">Gastos</span>
-              <span className="stat-value">
-                ${Math.round(totalSpentARS / (exchangeRate || 1280))} USD
-              </span>
+          {/* BILLETERA CON TOPE DE $1,000 USD BLUE */}
+          <div 
+            className={`stat-pill wallet-header-pill ${getBudgetMeterClass()}`}
+            onClick={onNavigateToBudget}
+            title="Haz clic para ver el desglose en Gastos & Mercado"
+            role="button"
+            tabIndex={0}
+          >
+            <div className="wallet-icon-wrapper">
+              <Wallet size={18} className="wallet-icon" />
+            </div>
+            <div className="stat-text wallet-stat-text">
+              <div className="wallet-labels-row">
+                <span className="stat-label">Billetera (Tope $1.000 USD)</span>
+                <span className="wallet-remaining-tag">
+                  Quedan ${Math.round(remainingUSD)} USD
+                </span>
+              </div>
+              <div className="wallet-values-row">
+                <span className="wallet-usd-val">
+                  ${Math.round(totalSpentUSD)} <small className="usd-cap">/ $1.000 USD Blue</small>
+                </span>
+                <span className="wallet-ars-val">
+                  ({formatCurrencyARS(totalSpentARS)})
+                </span>
+              </div>
+              <div className="header-budget-track">
+                <div 
+                  className={`header-budget-bar ${getBudgetMeterClass()}`}
+                  style={{ width: `${budgetPercentage}%` }}
+                ></div>
+              </div>
             </div>
           </div>
+
         </div>
 
         {/* Actions (Share, Backup) */}

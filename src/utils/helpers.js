@@ -1,4 +1,4 @@
-// Utilidades de mapas, enlaces y persistencia con colores pasteles claros
+// Utilidades de mapas, enlaces y persistencia con soporte de Dólar Blue y Pesos Argentinos
 
 export const getGoogleMapsTransitUrl = (activity) => {
   if (activity.coords && activity.coords.length === 2) {
@@ -22,8 +22,13 @@ export const formatCurrencyUSD = (amountARS, rate = 1280) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: 1,
     maximumFractionDigits: 1
   }).format(usd);
+};
+
+export const convertUsdToArs = (amountUSD, rate = 1280) => {
+  return Math.round((amountUSD || 0) * (rate || 1280));
 };
 
 export const getCategoryBadge = (category) => {

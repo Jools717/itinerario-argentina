@@ -2,7 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { X, MapPin, Clock, Tag, DollarSign, Users, AlertCircle, Sparkles } from 'lucide-react';
 import { INITIAL_DAYS } from '../data/initialData';
 
-export default function ActivityModal({ isOpen, onClose, onSave, editingActivity, currentDayNumber }) {
+export default function ActivityModal({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  editingActivity, 
+  currentDayNumber,
+  exchangeRate = 1280 
+}) {
   const [formData, setFormData] = useState({
     dayNumber: currentDayNumber || 1,
     time: "11:00",
@@ -201,6 +208,11 @@ export default function ActivityModal({ isOpen, onClose, onSave, editingActivity
                 onChange={(e) => setFormData({ ...formData, costEstimatedARS: Number(e.target.value) })}
                 className="form-input"
               />
+              {formData.costEstimatedARS > 0 && (
+                <div className="live-currency-hint">
+                  ≈ <strong>${(formData.costEstimatedARS / exchangeRate).toFixed(1)} USD Blue</strong> (cotiz: ${exchangeRate})
+                </div>
+              )}
             </div>
 
             <div className="form-group toggle-group-wrapper">

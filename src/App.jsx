@@ -492,6 +492,7 @@ export default function App() {
         cloudSyncStatus={cloudSyncStatus}
         onExportData={handleExportData}
         onImportData={handleImportData}
+        onNavigateToBudget={() => setActiveTab('gastos')}
       />
 
       {/* Main Tab Navigation */}
@@ -502,6 +503,7 @@ export default function App() {
         {activeTab === 'itinerario' && (
           <ItineraryView
             activities={activities}
+            exchangeRate={exchangeRate}
             onToggleComplete={handleToggleComplete}
             onToggleWithFriend={handleToggleWithFriend}
             onOpenAddModal={handleOpenAddModal}
@@ -552,6 +554,7 @@ export default function App() {
         onSave={handleSaveActivity}
         editingActivity={editingActivity}
         currentDayNumber={modalDayNumber}
+        exchangeRate={exchangeRate}
       />
 
       {/* Subtle Mobile Status Bar Spacer */}

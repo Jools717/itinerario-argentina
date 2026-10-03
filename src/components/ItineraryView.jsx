@@ -5,10 +5,11 @@ import {
   ChevronLeft, ChevronRight, AlertTriangle, Coffee, Filter
 } from 'lucide-react';
 import { INITIAL_DAYS } from '../data/initialData';
-import { getGoogleMapsTransitUrl, formatCurrencyARS, getCategoryBadge } from '../utils/helpers';
+import { getGoogleMapsTransitUrl, formatCurrencyARS, formatCurrencyUSD, getCategoryBadge } from '../utils/helpers';
 
 export default function ItineraryView({
   activities,
+  exchangeRate = 1280,
   onToggleComplete,
   onToggleWithFriend,
   onOpenAddModal,
@@ -131,6 +132,12 @@ export default function ItineraryView({
             <span className="mini-stat">
               <strong>{completedInDay}</strong> listos
             </span>
+            {dayActivities.reduce((s, a) => s + (Number(a.costEstimatedARS) || 0), 0) > 0 && (
+              <span className="mini-stat day-cost-mini-stat">
+                Est: <strong>{formatCurrencyARS(dayActivities.reduce((s, a) => s + (Number(a.costEstimatedARS) || 0), 0))}</strong>
+                <small className="usd-tag"> (≈ {formatCurrencyUSD(dayActivities.reduce((s, a) => s + (Number(a.costEstimatedARS) || 0), 0), exchangeRate)} USD Blue)</small>
+              </span>
+            )}
           </div>
 
           <div className="day-filters">
@@ -315,13 +322,16 @@ export default function ItineraryView({
                     </div>
                   )}
 
-                  {/* Footer: Estimated Cost & Primary Actions */}
+                  {/* Footer: Estimated Cost in ARS & USD Blue + Actions */}
                   <div className="act-footer">
                     <div className="act-cost">
                       {act.costEstimatedARS > 0 ? (
-                        <span>Est: {formatCurrencyARS(act.costEstimatedARS)}</span>
+                        <div className="dual-currency-box">
+                          <span className="cost-ars">{formatCurrencyARS(act.costEstimatedARS)}</span>
+                          <span className="cost-usd-blue">≈ {formatCurrencyUSD(act.costEstimatedARS, exchangeRate)} USD Blue</span>
+                        </div>
                       ) : (
-                        <span className="cost-free">Plan gratuito / En casa</span>
+                        <span className="cost-free">Plan gratuito / En casa ($0)</span>
                       )}
                     </div>
 
