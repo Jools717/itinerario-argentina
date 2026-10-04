@@ -5,7 +5,7 @@ export default function Navigation({ activeTab, setActiveTab }) {
   const tabs = [
     { id: 'itinerario', label: 'Itinerario', icon: CalendarDays, badge: '14 Días' },
     { id: 'mapa', label: 'Mapa & Rutas', icon: MapPin, badge: 'Pines' },
-    { id: 'gastos', label: 'Gastos & Mercado', icon: Wallet, badge: 'Presupuesto' },
+    { id: 'gastos', label: 'Billetera & Compras', icon: Wallet, badge: 'Hub $1k' },
     { id: 'tips', label: 'Tips & SUBE', icon: Compass, badge: 'Guía' },
     { id: 'checklist', label: 'Checklist', icon: CheckSquare, badge: 'Equipaje' },
   ];

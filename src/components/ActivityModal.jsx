@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Clock, Tag, DollarSign, Users, AlertCircle, Sparkles } from 'lucide-react';
 import { INITIAL_DAYS } from '../data/initialData';
+import { parseCurrencyNumber } from '../utils/helpers';
 
 export default function ActivityModal({ 
   isOpen, 
@@ -51,7 +52,8 @@ export default function ActivityModal({
       alert("Por favor ingresa un título para la actividad.");
       return;
     }
-    onSave(formData);
+    const cleanCost = parseCurrencyNumber(formData.costEstimatedARS) || 0;
+    onSave({ ...formData, costEstimatedARS: cleanCost });
     onClose();
   };
 
@@ -200,17 +202,16 @@ export default function ActivityModal({
             <div className="form-group">
               <label>Costo Estimado (ARS)</label>
               <input
-                type="number"
-                min="0"
-                step="500"
-                placeholder="Ej: 15000"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ej: 19.741"
                 value={formData.costEstimatedARS || ""}
-                onChange={(e) => setFormData({ ...formData, costEstimatedARS: Number(e.target.value) })}
+                onChange={(e) => setFormData({ ...formData, costEstimatedARS: e.target.value })}
                 className="form-input"
               />
-              {formData.costEstimatedARS > 0 && (
+              {parseCurrencyNumber(formData.costEstimatedARS) > 0 && (
                 <div className="live-currency-hint">
-                  ≈ <strong>${(formData.costEstimatedARS / exchangeRate).toFixed(1)} USD Blue</strong> (cotiz: ${exchangeRate})
+                  ≈ <strong>${(parseCurrencyNumber(formData.costEstimatedARS) / exchangeRate).toFixed(2)} USD Blue</strong> (cotiz: ${exchangeRate})
                 </div>
               )}
             </div>

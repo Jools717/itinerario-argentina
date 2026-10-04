@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Wallet, Download, Upload, Share2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, Wallet, CheckCircle2, ArrowRightLeft, RefreshCw } from 'lucide-react';
 import { TRIP_INFO } from '../data/initialData';
-import { formatCurrencyARS, formatCurrencyUSD } from '../utils/helpers';
+import { formatCurrencyARS, parseCurrencyNumber } from '../utils/helpers';
 
 export default function Header({ 
   activitiesCount, 
   completedCount, 
   totalSpentARS, 
-  exchangeRate, 
+  exchangeRate = 1540, 
+  onUpdateExchangeRate,
   cloudSyncStatus = 'offline',
-  onExportData, 
-  onImportData,
   onNavigateToBudget
 }) {
   const [daysLeft, setDaysLeft] = useState(0);
-  const [copiedShare, setCopiedShare] = useState(false);
+  const [arsInput, setArsInput] = useState(exchangeRate ? exchangeRate.toString() : '1540');
+  const [isFetchingRate, setIsFetchingRate] = useState(false);
 
   const BUDGET_CAP_USD = 1000; // Tope máximo de $1,000 USD
-  const totalSpentUSD = totalSpentARS / (exchangeRate || 1280);
+  const totalSpentUSD = totalSpentARS / (exchangeRate || 1540);
   const remainingUSD = Math.max(0, BUDGET_CAP_USD - totalSpentUSD);
   const budgetPercentage = Math.min(100, Math.round((totalSpentUSD / BUDGET_CAP_USD) * 100));
 
@@ -29,41 +29,62 @@ export default function Header({
     setDaysLeft(days > 0 ? days : 0);
   }, []);
 
-  const handleShare = () => {
-    const shareUrl = window.location.href;
-    if (navigator.share) {
-      navigator.share({
-        title: "Mi Itinerario Buenos Aires 2026",
-        text: "Aquí está nuestro itinerario para Buenos Aires (10 al 23 de Octubre)!",
-        url: shareUrl
-      }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      setCopiedShare(true);
-      setTimeout(() => setCopiedShare(false), 2500);
+  // Keep arsInput in sync if exchangeRate changes externally
+  useEffect(() => {
+    if (exchangeRate && exchangeRate >= 100) {
+      setArsInput(exchangeRate.toString());
+    }
+  }, [exchangeRate]);
+
+  const handleArsChange = (e) => {
+    const val = e.target.value;
+    setArsInput(val);
+    const parsedArs = parseCurrencyNumber(val);
+    if (parsedArs >= 100 && onUpdateExchangeRate) {
+      onUpdateExchangeRate(parsedArs);
     }
   };
 
-  const handleImportClick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const data = JSON.parse(event.target.result);
-            onImportData(data);
-          } catch (err) {
-            alert('Error al leer el archivo JSON.');
-          }
-        };
-        reader.readAsText(file);
+  const handleArsBlur = () => {
+    const parsedArs = parseCurrencyNumber(arsInput);
+    if (!parsedArs || parsedArs < 100) {
+      const fallback = (exchangeRate && exchangeRate >= 100) ? exchangeRate : 1540;
+      setArsInput(fallback.toString());
+      if (onUpdateExchangeRate) onUpdateExchangeRate(fallback);
+    } else {
+      if (onUpdateExchangeRate) onUpdateExchangeRate(parsedArs);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
+  const handleQuickPreset = (rate) => {
+    setArsInput(rate.toString());
+    if (onUpdateExchangeRate) {
+      onUpdateExchangeRate(rate);
+    }
+  };
+
+  const handleFetchLive = async () => {
+    setIsFetchingRate(true);
+    try {
+      const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+      if (res.ok) {
+        const data = await res.json();
+        const live = Number(data.compra) || Number(data.venta);
+        if (live && onUpdateExchangeRate) {
+          handleQuickPreset(live);
+        }
       }
-    };
-    input.click();
+    } catch {
+      // offline fallback
+    } finally {
+      setIsFetchingRate(false);
+    }
   };
 
   // Status color for the budget cap progress
@@ -169,37 +190,68 @@ export default function Header({
 
         </div>
 
-        {/* Actions (Share, Backup) */}
-        <div className="header-actions">
-          <button 
-            className="action-btn"
-            onClick={handleShare}
-            title="Compartir enlace o guardar en WhatsApp"
-            aria-label="Compartir"
-          >
-            <Share2 size={16} />
-            <span className="btn-label">{copiedShare ? "¡Copiado!" : "Compartir"}</span>
-          </button>
+        {/* Input de Cotización de Moneda (Reemplaza los botones de backup, restaurar y compartir) */}
+        <div className="header-currency-widget">
+          <div className="currency-widget-top">
+            <div className="currency-widget-title">
+              <ArrowRightLeft size={13} className="text-sky" />
+              <span>Cotización Dólar Blue</span>
+            </div>
+            <button
+              type="button"
+              className="btn-header-live-rate"
+              onClick={handleFetchLive}
+              disabled={isFetchingRate}
+              title="Consultar precio real de hoy en DolarApi.com"
+            >
+              <RefreshCw size={11} className={isFetchingRate ? 'spin-icon' : ''} />
+              <span>{isFetchingRate ? 'Consultando...' : 'En vivo'}</span>
+            </button>
+          </div>
 
-          <button 
-            className="action-btn"
-            onClick={onExportData}
-            title="Descargar copia de seguridad en JSON"
-            aria-label="Exportar"
-          >
-            <Download size={16} />
-            <span className="btn-label">Backup</span>
-          </button>
+          <div className="currency-widget-inputs-row">
+            <div className="fixed-usd-tag">
+              <span className="usd-flag">🇺🇸</span>
+              <span className="usd-text">1 USD</span>
+              <span className="currency-equals-sign">=</span>
+            </div>
 
-          <button 
-            className="action-btn"
-            onClick={handleImportClick}
-            title="Importar itinerario guardado"
-            aria-label="Importar"
-          >
-            <Upload size={16} />
-            <span className="btn-label">Restaurar</span>
-          </button>
+            <div className="currency-input-pill ars-pill">
+              <span className="pill-currency-symbol">$</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={arsInput}
+                onChange={handleArsChange}
+                onBlur={handleArsBlur}
+                onKeyDown={handleKeyDown}
+                placeholder="1540"
+                className="currency-input-field ars"
+                title="Ajusta el valor en Pesos Argentinos (ARS) de 1 Dólar"
+                aria-label="Pesos Argentinos por 1 USD"
+              />
+              <span className="pill-currency-code">ARS</span>
+            </div>
+          </div>
+
+          <div className="currency-widget-presets">
+            <button
+              type="button"
+              className={`widget-preset-chip ${Number(exchangeRate) === 1540 ? 'active' : ''}`}
+              onClick={() => handleQuickPreset(1540)}
+              title="Precio de compra en cuevas (cambiar USD a ARS)"
+            >
+              1.540 (Compra)
+            </button>
+            <button
+              type="button"
+              className={`widget-preset-chip ${Number(exchangeRate) === 1560 ? 'active' : ''}`}
+              onClick={() => handleQuickPreset(1560)}
+              title="Precio de venta en cuevas"
+            >
+              1.560 (Venta)
+            </button>
+          </div>
         </div>
 
       </div>
