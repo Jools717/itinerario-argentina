@@ -5,13 +5,13 @@ export const TRIP_INFO = {
   arrivalDate: "2026-10-10T05:30:00",
   departureDate: "2026-10-23T15:30:00",
   hostNote: "Control de gastos y registro real del viaje en Buenos Aires.",
-  defaultExchangeRateUSD: 3040 // Tasa efectiva: ARS 760.000 recibidos por USD 250 cambiados
+  defaultExchangeRateUSD: 1520 // Tasa pactada: ARS 760.000 recibidos por USD 500 cambiados ($1.520 ARS por USD)
 };
 
 export const CASH_EXCHANGE_INFO = {
-  initialUSDChanged: 250,
+  initialUSDChanged: 500,
   totalArsAgreed: 760000,
-  effectiveRate: 3040,
+  effectiveRate: 1520,
   cashDeliveries: [
     { date: "2026-10-10", label: "Sábado (madrugada)", amountARS: 250000 },
     { date: "2026-10-12", label: "Lunes", amountARS: 240000 }

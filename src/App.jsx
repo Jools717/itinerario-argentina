@@ -190,9 +190,9 @@ export default function App() {
       if (parsed && parsed >= 100) {
         return parsed;
       }
-      return TRIP_INFO.defaultExchangeRateUSD || 3040;
+      return TRIP_INFO.defaultExchangeRateUSD || 1520;
     } catch {
-      return TRIP_INFO.defaultExchangeRateUSD || 3040;
+      return TRIP_INFO.defaultExchangeRateUSD || 1520;
     }
   });
 

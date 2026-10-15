@@ -16,6 +16,7 @@ import DynamicExpenseSection from './DynamicExpenseSection';
 import NewCategoryModal from './NewCategoryModal';
 import ReceiptViewerModal from './ReceiptViewerModal';
 import EditExpenseModal from './EditExpenseModal';
+import { CASH_EXCHANGE_INFO } from '../data/initialData';
 
 export default function BudgetTracker({
   expenses = [],
@@ -177,6 +178,13 @@ export default function BudgetTracker({
 
   const cardExpensesCount = mergedExpenses.filter(e => getExpensePaymentMethod(e) === 'tarjeta').length;
   const cashExpensesCount = mergedExpenses.filter(e => getExpensePaymentMethod(e) === 'efectivo').length;
+
+  // Seguimiento de Efectivo Físico vs Dólares Cambiados
+  const cashAgreedTotal = CASH_EXCHANGE_INFO?.totalArsAgreed || 760000;
+  const cashReceivedTotal = CASH_EXCHANGE_INFO?.totalCashReceived || 490000;
+  const cashPendingDelivery = Math.max(0, cashAgreedTotal - cashReceivedTotal);
+  const cashAvailableNow = Math.max(0, cashReceivedTotal - totalCashARS);
+  const cashPercentUsed = cashReceivedTotal > 0 ? Math.min(100, Math.round((totalCashARS / cashReceivedTotal) * 100)) : 0;
 
   const parsedRawAmount = parseCurrencyNumber(rawAmount);
 
@@ -429,6 +437,98 @@ export default function BudgetTracker({
                   className={`wallet-progress-bar ${status.class}`}
                   style={{ width: `${percentUsed}%` }}
                 ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* CONTROL DE LIQUIDEZ Y SEGUIMIENTO: EFECTIVO EN MANO VS TARJETA */}
+          <div className="liquidity-cards-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: '16px',
+            marginBottom: '20px'
+          }}>
+            {/* Card 1: Efectivo Físico en Mano */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 78, 59, 0.25))',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+              borderRadius: '16px',
+              padding: '18px 20px',
+              position: 'relative'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Banknote size={16} /> Efectivo en Mano (Bolsillo)
+                </span>
+                <span style={{ fontSize: '0.75rem', background: 'rgba(16, 185, 129, 0.25)', color: '#34d399', padding: '3px 10px', borderRadius: '12px', fontWeight: 700 }}>
+                  {cashPercentUsed}% del efectivo gastado
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc' }}>
+                  {formatCurrencyARS(cashAvailableNow)}
+                </h3>
+                <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 600 }}>
+                  ≈ ${Math.round(cashAvailableNow / safeRate)} USD Blue
+                </span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                Saldo real disponible para gastar de los <strong>{formatCurrencyARS(cashReceivedTotal)}</strong> entregados en mano.
+              </p>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Total pactado (USD 500 cambiados):</span>
+                  <strong style={{ color: '#e2e8f0' }}>{formatCurrencyARS(cashAgreedTotal)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Gastado en efectivo ({cashExpensesCount} compras):</span>
+                  <strong style={{ color: '#f87171' }}>-{formatCurrencyARS(totalCashARS)}</strong>
+                </div>
+                {cashPendingDelivery > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Remanente por recibir:</span>
+                    <strong style={{ color: '#fbbf24' }}>{formatCurrencyARS(cashPendingDelivery)}</strong>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Card 2: Pagos con Tarjeta */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(49, 46, 129, 0.25))',
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              borderRadius: '16px',
+              padding: '18px 20px',
+              position: 'relative'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CreditCard size={16} /> Pagos con Tarjeta
+                </span>
+                <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.25)', color: '#a5b4fc', padding: '3px 10px', borderRadius: '12px', fontWeight: 700 }}>
+                  {cardExpensesCount} transacciones
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', marginBottom: '4px' }}>
+                <h3 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 800, color: '#f8fafc' }}>
+                  {formatCurrencyARS(totalTarjetaARS)}
+                </h3>
+                <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: 600 }}>
+                  ≈ ${Math.round(totalTarjetaARS / safeRate)} USD
+                </span>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                Total facturado en tu tarjeta de crédito/débito durante el viaje.
+              </p>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Ecoparque, Bellgamba, salidas:</span>
+                  <strong style={{ color: '#e2e8f0' }}>{formatCurrencyARS(totalTarjetaARS)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Impacto en tope global de $1.000 USD:</span>
+                  <strong style={{ color: '#818cf8' }}>{((totalTarjetaARS / (safeRate * BUDGET_CAP_USD)) * 100).toFixed(1)}% del presupuesto</strong>
+                </div>
               </div>
             </div>
           </div>
