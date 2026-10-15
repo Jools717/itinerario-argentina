@@ -4,7 +4,7 @@ import {
   CheckCircle2, Sparkles, Check, Delete, Equal, Tag, Eye, Edit3
 } from 'lucide-react';
 import ReceiptScanner from './ReceiptScanner';
-import { formatCurrencyARS, formatCurrencyUSD, parseCurrencyNumber, cleanCalcExpression } from '../utils/helpers';
+import { formatCurrencyARS, formatCurrencyUSD, parseCurrencyNumber, cleanCalcExpression, getExpensePaymentMethod } from '../utils/helpers';
 
 // Presets by category
 const CATEGORY_PRESETS = {
@@ -70,7 +70,8 @@ export default function DynamicExpenseSection({
   const [calcExpression, setCalcExpression] = useState('');
   const [cartTape, setCartTape] = useState([]);
   const [storeConcept, setStoreConcept] = useState('');
-  const [paidBy, setPaidBy] = useState('Yo');
+  const [paymentMethod, setPaymentMethod] = useState('efectivo'); // 'efectivo' | 'tarjeta'
+  const [paymentFilter, setPaymentFilter] = useState('all'); // 'all' | 'efectivo' | 'tarjeta'
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [note, setNote] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -80,13 +81,26 @@ export default function DynamicExpenseSection({
   const [manualConcept, setManualConcept] = useState('');
   const [manualAmount, setManualAmount] = useState('');
   const [manualCurrency, setManualCurrency] = useState('ARS');
-  const [manualPaidBy, setManualPaidBy] = useState('Yo');
   const [manualNote, setManualNote] = useState('');
 
   // Calculations for this category
-  const categoryExpenses = expenses.filter(e => e.category === category.id);
-  const totalCatARS = categoryExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+  const allCategoryExpenses = expenses.filter(e => e.category === category.id);
+  const totalCatARS = allCategoryExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
   const totalCatUSD = totalCatARS / safeRate;
+
+  const totalCatCashARS = allCategoryExpenses
+    .filter(e => getExpensePaymentMethod(e) === 'efectivo')
+    .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+
+  const totalCatCardARS = allCategoryExpenses
+    .filter(e => getExpensePaymentMethod(e) === 'tarjeta')
+    .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+
+  const categoryExpenses = allCategoryExpenses.filter(e => {
+    if (paymentFilter === 'efectivo') return getExpensePaymentMethod(e) === 'efectivo';
+    if (paymentFilter === 'tarjeta') return getExpensePaymentMethod(e) === 'tarjeta';
+    return true;
+  });
 
   // Global wallet totals
   const totalAllARS = expenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
@@ -164,7 +178,8 @@ export default function DynamicExpenseSection({
       concept: fullConcept,
       category: category.id,
       amountARS: finalAmount,
-      paidBy: paidBy,
+      paymentMethod: paymentMethod,
+      paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: fullNote
     };
 
@@ -196,7 +211,8 @@ export default function DynamicExpenseSection({
       concept: manualConcept.trim(),
       category: category.id,
       amountARS: finalARS,
-      paidBy: manualPaidBy,
+      paymentMethod: paymentMethod,
+      paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: manualNote.trim() || 'Ingreso directo'
     };
 
@@ -470,12 +486,41 @@ export default function DynamicExpenseSection({
 
                   <div className="approval-row-two-col">
                     <div className="approval-field">
-                      <label>¿Quién pagó?</label>
-                      <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="form-select">
-                        <option value="Yo">Yo</option>
-                        <option value="Mi Amiga">Mi Amiga</option>
-                        <option value="Compartido">Compartido (50/50)</option>
-                      </select>
+                      <label>Método de Pago</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('efectivo')}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: paymentMethod === 'efectivo' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                            background: paymentMethod === 'efectivo' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                            color: paymentMethod === 'efectivo' ? '#10b981' : 'inherit',
+                            fontWeight: paymentMethod === 'efectivo' ? '700' : '500',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          💵 Efectivo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('tarjeta')}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: paymentMethod === 'tarjeta' ? '2px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
+                            background: paymentMethod === 'tarjeta' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                            color: paymentMethod === 'tarjeta' ? '#3b82f6' : 'inherit',
+                            fontWeight: paymentMethod === 'tarjeta' ? '700' : '500',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          💳 Tarjeta
+                        </button>
+                      </div>
                     </div>
 
                     <div className="approval-field">
@@ -590,16 +635,41 @@ export default function DynamicExpenseSection({
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>¿Quién pagó?</label>
-                    <select
-                      value={manualPaidBy}
-                      onChange={(e) => setManualPaidBy(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="Yo">Yo</option>
-                      <option value="Mi Amiga">Mi Amiga</option>
-                      <option value="Compartido">Compartido (50/50)</option>
-                    </select>
+                    <label>Método de Pago</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('efectivo')}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: paymentMethod === 'efectivo' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                          background: paymentMethod === 'efectivo' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                          color: paymentMethod === 'efectivo' ? '#10b981' : 'inherit',
+                          fontWeight: paymentMethod === 'efectivo' ? '700' : '500',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        💵 Efectivo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('tarjeta')}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          border: paymentMethod === 'tarjeta' ? '2px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
+                          background: paymentMethod === 'tarjeta' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                          color: paymentMethod === 'tarjeta' ? '#3b82f6' : 'inherit',
+                          fontWeight: paymentMethod === 'tarjeta' ? '700' : '500',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem'
+                        }}
+                      >
+                        💳 Tarjeta
+                      </button>
+                    </div>
                   </div>
 
                   <div className="form-group">
@@ -642,13 +712,81 @@ export default function DynamicExpenseSection({
               <div>
                 <h4>Historial de {category.name}</h4>
                 <span className="history-subtitle">
-                  {categoryExpenses.length} gastos registrados en esta categoría
+                  {categoryExpenses.length} de {allCategoryExpenses.length} productos / gastos
                 </span>
               </div>
 
               <div className="history-total-badge">
                 <span className="badge-ars">{formatCurrencyARS(totalCatARS)}</span>
                 <span className="badge-usd">≈ ${totalCatUSD.toFixed(1)} USD Blue</span>
+              </div>
+            </div>
+
+            {/* Switch de Pago: General / Solo Efectivo / Solo Tarjeta */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '10px',
+              padding: '10px 14px',
+              margin: '0 0 14px 0',
+              background: 'rgba(15, 23, 42, 0.6)',
+              borderRadius: '10px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>
+                Filtrar por:
+              </span>
+              <div style={{ display: 'inline-flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '3px', borderRadius: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPaymentFilter('all')}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: paymentFilter === 'all' ? '#3b82f6' : 'transparent',
+                    color: paymentFilter === 'all' ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🌐 General ({allCategoryExpenses.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentFilter('efectivo')}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: paymentFilter === 'efectivo' ? '#10b981' : 'transparent',
+                    color: paymentFilter === 'efectivo' ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  💵 Efectivo ({formatCurrencyARS(totalCatCashARS)})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentFilter('tarjeta')}
+                  style={{
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: paymentFilter === 'tarjeta' ? '#6366f1' : 'transparent',
+                    color: paymentFilter === 'tarjeta' ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  💳 Tarjeta ({formatCurrencyARS(totalCatCardARS)})
+                </button>
               </div>
             </div>
 
@@ -666,6 +804,7 @@ export default function DynamicExpenseSection({
                 categoryExpenses.map(exp => {
                   const expUSD = (Number(exp.amountARS) || 0) / safeRate;
                   const hasReceipt = Boolean(exp.receipt_id);
+                  const isCard = getExpensePaymentMethod(exp) === 'tarjeta';
 
                   return (
                     <div key={exp.id} className="grocery-expense-item">
@@ -681,7 +820,16 @@ export default function DynamicExpenseSection({
                               📅 Día {exp.dayNumber} · Itinerario
                             </span>
                           ) : (
-                            <span className="paid-by-pill">Pagó: {exp.paidBy}</span>
+                            <span className="paid-by-pill" style={{
+                              background: isCard ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                              color: isCard ? '#3b82f6' : '#10b981',
+                              fontWeight: 700,
+                              borderRadius: '12px',
+                              padding: '2px 8px',
+                              fontSize: '0.74rem'
+                            }}>
+                              {isCard ? '💳 Tarjeta' : '💵 Efectivo'}
+                            </span>
                           )}
                           
                           {/* Receipt badge if photo attached */}

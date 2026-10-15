@@ -13,7 +13,7 @@ export default function EditExpenseModal({
   const [concept, setConcept] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [category, setCategory] = useState('mercado');
-  const [paidBy, setPaidBy] = useState('Yo');
+  const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [note, setNote] = useState('');
 
   const safeRate = (Number(exchangeRate) && Number(exchangeRate) >= 100) ? Number(exchangeRate) : 1540;
@@ -23,7 +23,10 @@ export default function EditExpenseModal({
       setConcept(expense.concept || '');
       setAmountInput(expense.amountARS ? expense.amountARS.toString() : '0');
       setCategory(expense.category || 'mercado');
-      setPaidBy(expense.paidBy || 'Yo');
+      const method = expense.paymentMethod || (
+        (expense.paidBy?.toLowerCase() === 'tarjeta' || expense.note?.toLowerCase().includes('tarjeta')) ? 'tarjeta' : 'efectivo'
+      );
+      setPaymentMethod(method);
       setNote(expense.note || '');
     }
   }, [expense, isOpen]);
@@ -46,7 +49,8 @@ export default function EditExpenseModal({
       concept: concept.trim(),
       amountARS: Math.max(0, parsedAmountARS),
       category: category,
-      paidBy: paidBy,
+      paymentMethod: paymentMethod,
+      paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: note.trim()
     };
 
@@ -156,16 +160,41 @@ export default function EditExpenseModal({
               </div>
 
               <div className="form-group">
-                <label>Pagado por</label>
-                <select
-                  value={paidBy}
-                  onChange={(e) => setPaidBy(e.target.value)}
-                  className="form-select"
-                >
-                  <option value="Yo">Yo</option>
-                  <option value="Mi Amiga">Mi Amiga</option>
-                  <option value="Compartido">Compartido (50/50)</option>
-                </select>
+                <label>Método de Pago</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('efectivo')}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: paymentMethod === 'efectivo' ? '2px solid #10b981' : '1px solid #334155',
+                      background: paymentMethod === 'efectivo' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(30, 41, 59, 0.7)',
+                      color: paymentMethod === 'efectivo' ? '#34d399' : '#94a3b8',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: '0.88rem'
+                    }}
+                  >
+                    💵 Efectivo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('tarjeta')}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: paymentMethod === 'tarjeta' ? '2px solid #3b82f6' : '1px solid #334155',
+                      background: paymentMethod === 'tarjeta' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(30, 41, 59, 0.7)',
+                      color: paymentMethod === 'tarjeta' ? '#60a5fa' : '#94a3b8',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontSize: '0.88rem'
+                    }}
+                  >
+                    💳 Tarjeta
+                  </button>
+                </div>
               </div>
             </div>
           )}

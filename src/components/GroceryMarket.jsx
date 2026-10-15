@@ -71,7 +71,7 @@ export default function GroceryMarket({
   const [cartTape, setCartTape] = useState([]); // List of line items or notes accumulated
   const [selectedStore, setSelectedStore] = useState('Coto');
   const [customStoreName, setCustomStoreName] = useState('');
-  const [paidBy, setPaidBy] = useState('Yo');
+  const [paymentMethod, setPaymentMethod] = useState('efectivo'); // 'efectivo' | 'tarjeta'
   const [groceryNote, setGroceryNote] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(() => new Date().toISOString().split('T')[0]);
 
@@ -220,7 +220,8 @@ export default function GroceryMarket({
       concept: `Mercado: ${storeLabel}`,
       category: 'mercado',
       amountARS: finalAmountARS,
-      paidBy: paidBy,
+      paymentMethod: paymentMethod,
+      paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: fullNote
     };
 
@@ -256,7 +257,8 @@ export default function GroceryMarket({
       concept: `Mercado: ${storeLabel}`,
       category: 'mercado',
       amountARS: amountARS,
-      paidBy: manualPaidBy,
+      paymentMethod: paymentMethod,
+      paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: manualNote.trim() || 'Ticket de supermercado'
     };
 
@@ -545,16 +547,41 @@ export default function GroceryMarket({
                   <div className="approval-row-two-col">
                     {/* Paid By */}
                     <div className="approval-field">
-                      <label>¿Quién pagó?</label>
-                      <select 
-                        value={paidBy} 
-                        onChange={(e) => setPaidBy(e.target.value)}
-                        className="form-select"
-                      >
-                        <option value="Yo">Yo</option>
-                        <option value="Mi Amiga">Mi Amiga</option>
-                        <option value="Compartido">Compartido (50/50)</option>
-                      </select>
+                      <label>Método de Pago</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('efectivo')}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: paymentMethod === 'efectivo' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                            background: paymentMethod === 'efectivo' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
+                            color: paymentMethod === 'efectivo' ? '#10b981' : 'inherit',
+                            fontWeight: paymentMethod === 'efectivo' ? '700' : '500',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          💵 Efectivo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentMethod('tarjeta')}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: paymentMethod === 'tarjeta' ? '2px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
+                            background: paymentMethod === 'tarjeta' ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                            color: paymentMethod === 'tarjeta' ? '#3b82f6' : 'inherit',
+                            fontWeight: paymentMethod === 'tarjeta' ? '700' : '500',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          💳 Tarjeta
+                        </button>
+                      </div>
                     </div>
 
                     {/* Date */}
@@ -780,7 +807,16 @@ export default function GroceryMarket({
                       <div className="expense-main-info">
                         <div className="expense-concept-row">
                           <span className="concept-title">{exp.concept}</span>
-                          <span className="paid-by-pill">Pagó: {exp.paidBy}</span>
+                          <span className="paid-by-pill" style={{
+                            background: (exp.paymentMethod === 'tarjeta' || exp.paidBy?.toLowerCase() === 'tarjeta') ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                            color: (exp.paymentMethod === 'tarjeta' || exp.paidBy?.toLowerCase() === 'tarjeta') ? '#3b82f6' : '#10b981',
+                            fontWeight: 700,
+                            borderRadius: '12px',
+                            padding: '2px 8px',
+                            fontSize: '0.74rem'
+                          }}>
+                            {(exp.paymentMethod === 'tarjeta' || exp.paidBy?.toLowerCase() === 'tarjeta') ? '💳 Tarjeta' : '💵 Efectivo'}
+                          </span>
                         </div>
 
                         <div className="expense-meta-row">

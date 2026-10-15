@@ -73,7 +73,10 @@ export default function ReceiptViewerModal({
                   <Calendar size={16} className="text-dim" />
                   <div>
                     <label>Fecha y Hora del Comprobante</label>
-                    <span>{expense.date}{expense.time ? ` • ${expense.time}` : ''} • Pagó: <strong>{expense.paidBy}</strong></span>
+                    <span>
+                      {expense.date}{expense.time ? ` • ${expense.time}` : ''} • Método:{' '}
+                      <strong>{expense.paymentMethod === 'tarjeta' || expense.paidBy?.toLowerCase() === 'tarjeta' ? '💳 Tarjeta' : '💵 Efectivo'}</strong>
+                    </span>
                   </div>
                 </div>
 

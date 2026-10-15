@@ -97,7 +97,7 @@ export const INITIAL_ACTIVITIES = [
     address: "Cafetería de Especialidad, Palermo",
     coords: [-34.5855, -58.4230],
     description: "Merienda de café y postre para recargar energías por la tarde.",
-    tip: "Gasto de ARS 32.000 (pagó Ale).",
+    tip: "Gasto de ARS 32.000 abonado con tarjeta.",
     withFriend: true,
     completed: true,
     costEstimatedARS: 32000
@@ -364,8 +364,9 @@ export const INITIAL_EXPENSES = [
     concept: "Entrada al Ecoparque",
     category: "cultura",
     amountARS: 22650,
-    paidBy: "Yo",
-    note: "Tarjeta"
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
+    note: "Entrada general"
   },
   {
     id: "exp-2",
@@ -373,8 +374,9 @@ export const INITIAL_EXPENSES = [
     concept: "Café y postre",
     category: "gastronomia",
     amountARS: 32000,
-    paidBy: "Ale",
-    note: "Pagó Ale"
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
+    note: "Merienda cafetería"
   },
   {
     id: "exp-3",
@@ -382,8 +384,9 @@ export const INITIAL_EXPENSES = [
     concept: "Gastos en Bellgamba",
     category: "gastronomia",
     amountARS: 50000,
-    paidBy: "Yo",
-    note: "Mi tarjeta"
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
+    note: "Cena bodegón"
   },
 
   // Domingo 11 de octubre
@@ -393,8 +396,9 @@ export const INITIAL_EXPENSES = [
     concept: "Recarga de la tarjeta SUBE",
     category: "transporte",
     amountARS: 10000,
-    paidBy: "Yo",
-    note: "Tarjeta SUBE (Saldo actual: $3.500)"
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
+    note: "Recarga en boletería / kiosco"
   },
   {
     id: "exp-5",
@@ -402,7 +406,8 @@ export const INITIAL_EXPENSES = [
     concept: "Compras: Pezuña",
     category: "compras",
     amountARS: 35000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "Feria San Telmo"
   },
   {
@@ -411,7 +416,8 @@ export const INITIAL_EXPENSES = [
     concept: "Compras: Imanes",
     category: "compras",
     amountARS: 12000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "Feria San Telmo"
   },
   {
@@ -420,7 +426,8 @@ export const INITIAL_EXPENSES = [
     concept: "Compras: Peluches de Messi y Maradona",
     category: "compras",
     amountARS: 12000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "Feria San Telmo"
   },
   {
@@ -429,7 +436,8 @@ export const INITIAL_EXPENSES = [
     concept: "Compras: Mates con nombres",
     category: "compras",
     amountARS: 9000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "Feria San Telmo"
   },
   {
@@ -438,7 +446,8 @@ export const INITIAL_EXPENSES = [
     concept: "Compras: Medias (3 pares)",
     category: "compras",
     amountARS: 15000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "Feria San Telmo"
   },
   {
@@ -447,8 +456,9 @@ export const INITIAL_EXPENSES = [
     concept: "Alberro Fonda: 2 choripanes, 1 fernet y 1 Coca-Cola",
     category: "gastronomia",
     amountARS: 40000,
-    paidBy: "Yo",
-    note: "San Telmo"
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
+    note: "Almuerzo en San Telmo"
   },
   {
     id: "exp-11",
@@ -456,8 +466,9 @@ export const INITIAL_EXPENSES = [
     concept: "Bar",
     category: "gastronomia",
     amountARS: 17000,
-    paidBy: "Yo",
-    note: "Tarjeta"
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
+    note: "Tragos de noche"
   },
   {
     id: "exp-12",
@@ -465,8 +476,9 @@ export const INITIAL_EXPENSES = [
     concept: "Discoteca (madrugada del lunes)",
     category: "gastronomia",
     amountARS: 30000,
-    paidBy: "Yo",
-    note: "Tarjeta"
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
+    note: "Salida nocturna"
   },
 
   // Lunes 12 de octubre
@@ -476,7 +488,8 @@ export const INITIAL_EXPENSES = [
     concept: "Entrada al museo",
     category: "cultura",
     amountARS: 47000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "La Boca"
   },
   {
@@ -485,7 +498,8 @@ export const INITIAL_EXPENSES = [
     concept: "Pizza",
     category: "gastronomia",
     amountARS: 16000,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "La Boca"
   },
   {
@@ -494,8 +508,9 @@ export const INITIAL_EXPENSES = [
     concept: "Alfajores (12 unidades)",
     category: "compras",
     amountARS: 26000,
-    paidBy: "Yo",
-    note: "Recuerdo / Regalos"
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
+    note: "Recuerdo tradicional"
   },
 
   // Martes 13 de octubre
@@ -505,7 +520,8 @@ export const INITIAL_EXPENSES = [
     concept: "Transporte de ida y vuelta",
     category: "transporte",
     amountARS: 4500,
-    paidBy: "Yo",
+    paymentMethod: "efectivo",
+    paidBy: "Efectivo",
     note: "Colectivo / Subte"
   },
   {
@@ -514,7 +530,8 @@ export const INITIAL_EXPENSES = [
     concept: "Entrada al Cementerio de la Recoleta",
     category: "cultura",
     amountARS: 27000,
-    paidBy: "Yo",
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
     note: "Tarjeta de crédito Nu"
   },
   {
@@ -523,8 +540,9 @@ export const INITIAL_EXPENSES = [
     concept: "Comida y bebida en Puerto Madero",
     category: "gastronomia",
     amountARS: 67600,
-    paidBy: "Yo",
-    note: "Tarjeta"
+    paymentMethod: "tarjeta",
+    paidBy: "Tarjeta",
+    note: "Cena en Diques"
   }
 ];
 

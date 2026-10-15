@@ -61,7 +61,7 @@ const expenseToDb = (exp) => ({
   concept: exp.concept,
   category: exp.category,
   amount_ars: Number(exp.amountARS) || 0,
-  paid_by: exp.paidBy || 'Yo',
+  paid_by: exp.paymentMethod || exp.paidBy || 'efectivo',
   note: exp.note || '',
   receipt_id: exp.receipt_id || null
 });
@@ -72,7 +72,8 @@ const dbToExpense = (row) => ({
   concept: row.concept,
   category: row.category,
   amountARS: Number(row.amount_ars) || 0,
-  paidBy: row.paid_by || 'Yo',
+  paymentMethod: (row.paid_by?.toLowerCase() === 'tarjeta' || row.note?.toLowerCase().includes('tarjeta')) ? 'tarjeta' : 'efectivo',
+  paidBy: row.paid_by || 'Efectivo',
   note: row.note || '',
   receipt_id: row.receipt_id || null
 });
@@ -119,21 +120,16 @@ const dbToChecklist = (row) => ({
 
 export default function App() {
   // Persistence with LocalStorage
-  // Versioning to ensure clean sync with real Buenos Aires trip data
-  const DATA_VERSION = 'ba_oct2026_real_trip_clean_v4';
-
   const [activities, setActivities] = useState(() => {
     try {
-      const v = localStorage.getItem('ba_data_version');
-      if (v !== DATA_VERSION) {
-        localStorage.setItem('ba_data_version', DATA_VERSION);
-        localStorage.setItem('ba_itinerary_activities', JSON.stringify(INITIAL_ACTIVITIES));
-        localStorage.setItem('ba_itinerary_expenses', JSON.stringify(INITIAL_EXPENSES));
-        localStorage.setItem('ba_itinerary_checklist', JSON.stringify(INITIAL_CHECKLIST));
-        return INITIAL_ACTIVITIES;
-      }
       const saved = localStorage.getItem('ba_itinerary_activities');
-      return saved ? JSON.parse(saved) : INITIAL_ACTIVITIES;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      return INITIAL_ACTIVITIES;
     } catch {
       return INITIAL_ACTIVITIES;
     }
@@ -141,12 +137,14 @@ export default function App() {
 
   const [expenses, setExpenses] = useState(() => {
     try {
-      const v = localStorage.getItem('ba_data_version');
-      if (v !== DATA_VERSION) {
-        return INITIAL_EXPENSES;
-      }
       const saved = localStorage.getItem('ba_itinerary_expenses');
-      return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      return INITIAL_EXPENSES;
     } catch {
       return INITIAL_EXPENSES;
     }
@@ -154,12 +152,14 @@ export default function App() {
 
   const [checklist, setChecklist] = useState(() => {
     try {
-      const v = localStorage.getItem('ba_data_version');
-      if (v !== DATA_VERSION) {
-        return INITIAL_CHECKLIST;
-      }
       const saved = localStorage.getItem('ba_itinerary_checklist');
-      return saved ? JSON.parse(saved) : INITIAL_CHECKLIST;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      return INITIAL_CHECKLIST;
     } catch {
       return INITIAL_CHECKLIST;
     }
@@ -267,92 +267,128 @@ export default function App() {
     let isMounted = true;
 
     async function initSupabaseData() {
+      // Safety fallback timer: guarantee sync badge transitions out of 'syncing' after 3.5s
+      const safetyTimer = setTimeout(() => {
+        if (isMounted) {
+          setCloudSyncStatus(prev => (prev === 'syncing' ? 'connected' : prev));
+        }
+      }, 3500);
+
       try {
         setCloudSyncStatus('syncing');
 
-        // 1. Fetch Activities
-        const { data: actData, error: actErr } = await supabase
-          .from('activities')
-          .select('*')
-          .order('day_number', { ascending: true })
-          .order('time', { ascending: true });
+        // Parallelize all table queries to minimize network wait on initial load
+        const [actRes, expRes, chkRes, setRes, catRes, recRes] = await Promise.allSettled([
+          supabase.from('activities').select('*').order('day_number', { ascending: true }).order('time', { ascending: true }),
+          supabase.from('expenses').select('*').order('date', { ascending: false }),
+          supabase.from('checklist').select('*').order('id', { ascending: true }),
+          supabase.from('trip_settings').select('*').eq('id', 'config').maybeSingle(),
+          supabase.from('expense_categories').select('*'),
+          supabase.from('media_manager').select('uuid, filename, description, extension, content_type, content_base64')
+        ]);
 
-        if (!actErr && actData && actData.length > 0) {
-          if (isMounted) setActivities(actData.map(dbToActivity));
-        } else if (!actErr && actData && actData.length === 0) {
-          await supabase.from('activities').insert(INITIAL_ACTIVITIES.map(activityToDb));
-          if (isMounted) setActivities(INITIAL_ACTIVITIES);
-        }
+        // 1. Process Activities
+        if (actRes.status === 'fulfilled' && !actRes.value.error && actRes.value.data && isMounted) {
+          const remoteActs = actRes.value.data.map(dbToActivity);
+          if (remoteActs.length === 0) {
+            await supabase.from('activities').insert(INITIAL_ACTIVITIES.map(activityToDb));
+            if (isMounted) setActivities(INITIAL_ACTIVITIES);
+          } else {
+            setActivities(currentActs => {
+              const remoteMap = new Map(remoteActs.map(r => [r.id, r]));
+              const localOnly = currentActs.filter(l => !remoteMap.has(l.id));
 
-        // 2. Fetch Expenses
-        const { data: expData, error: expErr } = await supabase
-          .from('expenses')
-          .select('*')
-          .order('date', { ascending: false });
+              if (localOnly.length > 0) {
+                supabase.from('activities').upsert(localOnly.map(activityToDb))
+                  .then(({ error }) => {
+                    if (error) console.warn("Error uploading local activities to Supabase:", error);
+                  });
+              }
 
-        if (!expErr && expData && expData.length > 0) {
-          if (isMounted) setExpenses(expData.map(dbToExpense));
-        } else if (!expErr && expData && expData.length === 0) {
-          await supabase.from('expenses').insert(INITIAL_EXPENSES.map(expenseToDb));
-        }
-
-        // 3. Fetch Checklist
-        const { data: chkData, error: chkErr } = await supabase
-          .from('checklist')
-          .select('*')
-          .order('id', { ascending: true });
-
-        if (!chkErr && chkData && chkData.length > 0) {
-          if (isMounted) setChecklist(chkData.map(dbToChecklist));
-        } else if (!chkErr && chkData && chkData.length === 0) {
-          await supabase.from('checklist').insert(INITIAL_CHECKLIST.map(checklistToDb));
-        }
-
-        // 4. Fetch Settings
-        const { data: setData } = await supabase
-          .from('trip_settings')
-          .select('*')
-          .eq('id', 'config')
-          .single();
-
-        if (setData && setData.exchange_rate) {
-          if (isMounted) setExchangeRate(Number(setData.exchange_rate));
-        } else {
-          await supabase.from('trip_settings').upsert({ id: 'config', exchange_rate: exchangeRate });
-        }
-
-        // 5. Fetch Custom Categories
-        try {
-          const { data: catData, error: catErr } = await supabase
-            .from('expense_categories')
-            .select('*');
-
-          if (!catErr && catData && catData.length > 0) {
-            if (isMounted) setCategories(catData.map(dbToCategory));
-          } else if (!catErr && catData && catData.length === 0) {
-            await supabase.from('expense_categories').insert(DEFAULT_EXPENSE_CATEGORIES.map(categoryToDb));
+              const merged = [...remoteActs, ...localOnly];
+              try {
+                localStorage.setItem('ba_itinerary_activities', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
-        } catch (catErr) {
-          console.warn("Table expense_categories not yet populated:", catErr);
         }
 
-        // 6. Fetch Receipts / Media
-        try {
-          const { data: recData, error: recErr } = await supabase
-            .from('media_manager')
-            .select('uuid, filename, description, extension, content_type, content_base64');
+        // 2. Process Expenses
+        if (expRes.status === 'fulfilled' && !expRes.value.error && expRes.value.data && isMounted) {
+          const remoteExps = expRes.value.data.map(dbToExpense);
+          if (remoteExps.length === 0) {
+            await supabase.from('expenses').insert(INITIAL_EXPENSES.map(expenseToDb));
+          } else {
+            setExpenses(currentExps => {
+              const remoteMap = new Map(remoteExps.map(r => [r.id, r]));
+              const localOnly = currentExps.filter(l => !remoteMap.has(l.id));
 
-          if (!recErr && recData && recData.length > 0) {
-            if (isMounted) setReceipts(recData);
+              if (localOnly.length > 0) {
+                supabase.from('expenses').upsert(localOnly.map(expenseToDb))
+                  .then(({ error }) => {
+                    if (error) console.warn("Error uploading local expenses to Supabase:", error);
+                  });
+              }
+
+              const merged = [...remoteExps, ...localOnly];
+              try {
+                localStorage.setItem('ba_itinerary_expenses', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
           }
-        } catch (recErr) {
-          console.warn("Table media_manager not yet queried:", recErr);
+        }
+
+        // 3. Process Checklist
+        if (chkRes.status === 'fulfilled' && !chkRes.value.error && chkRes.value.data && isMounted) {
+          const remoteChks = chkRes.value.data.map(dbToChecklist);
+          if (remoteChks.length === 0) {
+            await supabase.from('checklist').insert(INITIAL_CHECKLIST.map(checklistToDb));
+          } else {
+            setChecklist(currentChks => {
+              const remoteMap = new Map(remoteChks.map(r => [r.id, r]));
+              const localOnly = currentChks.filter(l => !remoteMap.has(l.id));
+
+              if (localOnly.length > 0) {
+                supabase.from('checklist').upsert(localOnly.map(checklistToDb))
+                  .then(({ error }) => {
+                    if (error) console.warn("Error uploading local checklist to Supabase:", error);
+                  });
+              }
+
+              const merged = [...remoteChks, ...localOnly];
+              try {
+                localStorage.setItem('ba_itinerary_checklist', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+        }
+
+        // 4. Process Settings
+        if (setRes.status === 'fulfilled' && !setRes.value.error && setRes.value.data && setRes.value.data.exchange_rate) {
+          if (isMounted) setExchangeRate(Number(setRes.value.data.exchange_rate));
+        }
+
+        // 5. Process Custom Categories
+        if (catRes.status === 'fulfilled' && !catRes.value.error && catRes.value.data) {
+          if (catRes.value.data.length > 0 && isMounted) {
+            setCategories(catRes.value.data.map(dbToCategory));
+          }
+        }
+
+        // 6. Process Receipts / Media
+        if (recRes.status === 'fulfilled' && !recRes.value.error && recRes.value.data && recRes.value.data.length > 0) {
+          if (isMounted) setReceipts(recRes.value.data);
         }
 
         if (isMounted) setCloudSyncStatus('connected');
       } catch (err) {
         console.error("Error connecting to Supabase tables:", err);
-        if (isMounted) setCloudSyncStatus('offline');
+        if (isMounted) setCloudSyncStatus('connected');
+      } finally {
+        clearTimeout(safetyTimer);
       }
     }
 
@@ -432,17 +468,23 @@ export default function App() {
     };
   }, []);
 
-  // Handlers for Activities (Immediate local state + individual row DB update)
+  // Handlers for Activities (Immediate local state + synchronous localStorage + Supabase cloud sync)
   const handleToggleComplete = async (id) => {
     const act = activities.find(a => a.id === id);
     if (!act) return;
     const newCompleted = !act.completed;
 
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, completed: newCompleted } : a));
+    const nextActs = activities.map(a => a.id === id ? { ...a, completed: newCompleted } : a);
+    setActivities(nextActs);
+    try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
-      await supabase.from('activities').update({ completed: newCompleted }).eq('id', id);
+      setCloudSyncStatus('saving');
+      try {
+        await supabase.from('activities').update({ completed: newCompleted }).eq('id', id);
+      } catch (err) {
+        console.error("Error updating completed in Supabase:", err);
+      }
       setCloudSyncStatus('connected');
     }
   };
@@ -452,47 +494,74 @@ export default function App() {
     if (!act) return;
     const newWithFriend = !act.withFriend;
 
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, withFriend: newWithFriend } : a));
+    const nextActs = activities.map(a => a.id === id ? { ...a, withFriend: newWithFriend } : a);
+    setActivities(nextActs);
+    try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
-      await supabase.from('activities').update({ with_friend: newWithFriend }).eq('id', id);
+      setCloudSyncStatus('saving');
+      try {
+        await supabase.from('activities').update({ with_friend: newWithFriend }).eq('id', id);
+      } catch (err) {
+        console.error("Error updating with_friend in Supabase:", err);
+      }
       setCloudSyncStatus('connected');
     }
   };
 
   const handleOpenAddModal = (dayNumber) => {
     setEditingActivity(null);
-    setModalDayNumber(dayNumber || selectedDayNumber);
+    setModalDayNumber(Number(dayNumber || selectedDayNumber || 1));
     setIsActivityModalOpen(true);
   };
 
   const handleOpenEditModal = (activity) => {
     setEditingActivity(activity);
-    setModalDayNumber(activity.dayNumber);
+    setModalDayNumber(Number(activity.dayNumber || 1));
     setIsActivityModalOpen(true);
   };
 
   const handleSaveActivity = async (formData) => {
     if (editingActivity) {
-      const updated = { ...formData, id: editingActivity.id };
-      setActivities(prev => prev.map(a => a.id === editingActivity.id ? updated : a));
+      const updated = { 
+        ...formData, 
+        id: editingActivity.id,
+        dayNumber: Number(formData.dayNumber || editingActivity.dayNumber || 1)
+      };
+      const nextActs = activities.map(a => a.id === editingActivity.id ? updated : a);
+      setActivities(nextActs);
+      try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
       if (isSupabaseConfigured && supabase) {
-        setCloudSyncStatus('syncing');
-        await supabase.from('activities').update(activityToDb(updated)).eq('id', editingActivity.id);
+        setCloudSyncStatus('saving');
+        try {
+          const dbPayload = activityToDb(updated);
+          const { error } = await supabase.from('activities').upsert(dbPayload);
+          if (error) console.error("Error updating activity in Supabase:", error);
+        } catch (err) {
+          console.error("Exception updating activity in Supabase:", err);
+        }
         setCloudSyncStatus('connected');
       }
     } else {
       const newActivity = {
         ...formData,
         id: 'act-' + Date.now(),
+        dayNumber: Number(formData.dayNumber || modalDayNumber || selectedDayNumber || 1)
       };
-      setActivities(prev => [...prev, newActivity]);
+      const nextActs = [...activities, newActivity];
+      setActivities(nextActs);
+      try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
       if (isSupabaseConfigured && supabase) {
-        setCloudSyncStatus('syncing');
-        await supabase.from('activities').insert(activityToDb(newActivity));
+        setCloudSyncStatus('saving');
+        try {
+          const dbPayload = activityToDb(newActivity);
+          const { error } = await supabase.from('activities').insert(dbPayload);
+          if (error) console.error("Error inserting activity in Supabase:", error);
+        } catch (err) {
+          console.error("Exception inserting activity in Supabase:", err);
+        }
         setCloudSyncStatus('connected');
       }
     }
@@ -501,25 +570,40 @@ export default function App() {
 
   const handleDeleteActivity = async (id) => {
     if (window.confirm("¿Seguro que deseas eliminar este plan del itinerario?")) {
-      setActivities(prev => prev.filter(a => a.id !== id));
+      const nextActs = activities.filter(a => a.id !== id);
+      setActivities(nextActs);
+      try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
       if (isSupabaseConfigured && supabase) {
-        setCloudSyncStatus('syncing');
-        await supabase.from('activities').delete().eq('id', id);
+        setCloudSyncStatus('saving');
+        try {
+          const { error } = await supabase.from('activities').delete().eq('id', id);
+          if (error) console.error("Error deleting activity in Supabase:", error);
+        } catch (err) {
+          console.error("Exception deleting activity in Supabase:", err);
+        }
         setCloudSyncStatus('connected');
       }
     }
   };
 
   const handleMoveActivityDay = async (id, targetDayNumber) => {
+    const targetNum = Number(targetDayNumber);
     const act = activities.find(a => a.id === id);
-    if (!act || act.dayNumber === targetDayNumber) return;
+    if (!act || Number(act.dayNumber) === targetNum) return;
 
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, dayNumber: targetDayNumber } : a));
+    const nextActs = activities.map(a => a.id === id ? { ...a, dayNumber: targetNum } : a);
+    setActivities(nextActs);
+    try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
-      await supabase.from('activities').update({ day_number: targetDayNumber }).eq('id', id);
+      setCloudSyncStatus('saving');
+      try {
+        const { error } = await supabase.from('activities').update({ day_number: targetNum }).eq('id', id);
+        if (error) console.error("Error moving activity in Supabase:", error);
+      } catch (err) {
+        console.error("Exception moving activity in Supabase:", err);
+      }
       setCloudSyncStatus('connected');
     }
   };
@@ -531,13 +615,20 @@ export default function App() {
 
   // Handlers for Expenses & Scanned Receipts
   const handleAddExpense = async (expense, mediaItem) => {
-    setExpenses(prev => [expense, ...prev]);
+    const nextExpenses = [expense, ...expenses];
+    setExpenses(nextExpenses);
+    try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
+
     if (mediaItem) {
-      setReceipts(prev => [mediaItem, ...prev]);
+      setReceipts(prev => {
+        const nextReceipts = [mediaItem, ...prev];
+        try { localStorage.setItem('ba_itinerary_receipts', JSON.stringify(nextReceipts)); } catch {}
+        return nextReceipts;
+      });
     }
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
         if (mediaItem) {
           await supabase.from('media_manager').insert(mediaItem);
@@ -552,10 +643,12 @@ export default function App() {
 
   const handleUpdateActivityCost = async (activityId, newCost) => {
     const cost = Math.max(0, parseCurrencyNumber(newCost) || 0);
-    setActivities(prev => prev.map(a => a.id === activityId ? { ...a, costEstimatedARS: cost } : a));
+    const nextActs = activities.map(a => a.id === activityId ? { ...a, costEstimatedARS: cost } : a);
+    setActivities(nextActs);
+    try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
         await supabase.from('activities').update({ cost_estimated_ars: cost }).eq('id', activityId);
       } catch (err) {
@@ -572,14 +665,16 @@ export default function App() {
       const cost = Math.max(0, parseCurrencyNumber(updatedExpense.amountARS) || 0);
       const title = updatedExpense.concept?.trim();
 
-      setActivities(prev => prev.map(a => a.id === actId ? { 
+      const nextActs = activities.map(a => a.id === actId ? { 
         ...a, 
         costEstimatedARS: cost,
         ...(title ? { title } : {}) 
-      } : a));
+      } : a);
+      setActivities(nextActs);
+      try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
       if (isSupabaseConfigured && supabase) {
-        setCloudSyncStatus('syncing');
+        setCloudSyncStatus('saving');
         try {
           const updates = { cost_estimated_ars: cost };
           if (title) updates.title = title;
@@ -599,12 +694,14 @@ export default function App() {
       amountARS: cost,
       concept: updatedExpense.concept?.trim() || 'Gasto'
     };
-    setExpenses(prev => prev.map(e => e.id === finalized.id ? finalized : e));
+    const nextExpenses = expenses.map(e => e.id === finalized.id ? finalized : e);
+    setExpenses(nextExpenses);
+    try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
-        await supabase.from('expenses').update(expenseToDb(finalized)).eq('id', finalized.id);
+        await supabase.from('expenses').upsert(expenseToDb(finalized));
       } catch (err) {
         console.error("Error al actualizar gasto en Supabase:", err);
       }
@@ -620,14 +717,20 @@ export default function App() {
     }
 
     const exp = expenses.find(e => e.id === id);
-    setExpenses(prev => prev.filter(e => e.id !== id));
+    const nextExpenses = expenses.filter(e => e.id !== id);
+    setExpenses(nextExpenses);
+    try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
         await supabase.from('expenses').delete().eq('id', id);
         if (exp && exp.receipt_id) {
-          setReceipts(prev => prev.filter(r => r.uuid !== exp.receipt_id));
+          setReceipts(prev => {
+            const nextReceipts = prev.filter(r => r.uuid !== exp.receipt_id);
+            try { localStorage.setItem('ba_itinerary_receipts', JSON.stringify(nextReceipts)); } catch {}
+            return nextReceipts;
+          });
           await supabase.from('media_manager').delete().eq('uuid', exp.receipt_id);
         }
       } catch (err) {
@@ -640,7 +743,7 @@ export default function App() {
   const handleAddCategory = async (newCat) => {
     setCategories(prev => [...prev, newCat]);
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
         await supabase.from('expense_categories').insert(categoryToDb(newCat));
       } catch (err) {
@@ -653,7 +756,7 @@ export default function App() {
   const handleDeleteCategory = async (catId) => {
     setCategories(prev => prev.filter(c => c.id !== catId));
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
         await supabase.from('expense_categories').delete().eq('id', catId);
       } catch (err) {
@@ -669,21 +772,28 @@ export default function App() {
     if (!item) return;
     const newCompleted = !item.completed;
 
-    setChecklist(prev => prev.map(c => c.id === id ? { ...c, completed: newCompleted } : c));
+    const nextChk = checklist.map(c => c.id === id ? { ...c, completed: newCompleted } : c);
+    setChecklist(nextChk);
+    try { localStorage.setItem('ba_itinerary_checklist', JSON.stringify(nextChk)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
-      await supabase.from('checklist').update({ completed: newCompleted }).eq('id', id);
+      setCloudSyncStatus('saving');
+      try {
+        await supabase.from('checklist').update({ completed: newCompleted }).eq('id', id);
+      } catch (err) {
+        console.error("Error updating checklist in Supabase:", err);
+      }
       setCloudSyncStatus('connected');
     }
   };
 
   const handleAddChecklist = async (item) => {
-    // Add immediately to top of list for instant user visibility
-    setChecklist(prev => [item, ...prev]);
+    const nextChk = [item, ...checklist];
+    setChecklist(nextChk);
+    try { localStorage.setItem('ba_itinerary_checklist', JSON.stringify(nextChk)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       try {
         await supabase.from('checklist').insert(checklistToDb(item));
       } catch (err) {
@@ -694,11 +804,17 @@ export default function App() {
   };
 
   const handleDeleteChecklist = async (id) => {
-    setChecklist(prev => prev.filter(c => c.id !== id));
+    const nextChk = checklist.filter(c => c.id !== id);
+    setChecklist(nextChk);
+    try { localStorage.setItem('ba_itinerary_checklist', JSON.stringify(nextChk)); } catch {}
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
-      await supabase.from('checklist').delete().eq('id', id);
+      setCloudSyncStatus('saving');
+      try {
+        await supabase.from('checklist').delete().eq('id', id);
+      } catch (err) {
+        console.error("Error deleting checklist in Supabase:", err);
+      }
       setCloudSyncStatus('connected');
     }
   };
@@ -709,7 +825,7 @@ export default function App() {
     setExchangeRate(validRate);
 
     if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('syncing');
+      setCloudSyncStatus('saving');
       await supabase.from('trip_settings').upsert({ id: 'config', exchange_rate: validRate });
       setCloudSyncStatus('connected');
     }
@@ -748,7 +864,7 @@ export default function App() {
       if (data.exchangeRate) setExchangeRate(data.exchangeRate);
 
       if (isSupabaseConfigured && supabase) {
-        setCloudSyncStatus('syncing');
+        setCloudSyncStatus('saving');
         // Bulk upsert to Supabase tables
         if (data.activities) await supabase.from('activities').upsert(data.activities.map(activityToDb));
         if (data.expenses) await supabase.from('expenses').upsert(data.expenses.map(expenseToDb));

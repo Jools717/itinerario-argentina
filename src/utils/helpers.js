@@ -42,10 +42,22 @@ export const getCategoryBadge = (category) => {
     compras: { label: "Compras", bg: "#fce7f3", color: "#be185d", icon: "ShoppingBag" },
     vida_nocturna: { label: "Vida Nocturna", bg: "#e0e7ff", color: "#4338ca", icon: "Moon" },
     relax: { label: "Relax & Casa", bg: "#ccfbf1", color: "#0f766e", icon: "Coffee" },
-    mercado: { label: "Mercado Casa", bg: "#dcfce7", color: "#15803d", icon: "ShoppingCart" }
   };
   return map[category] || { label: "General", bg: "#f1f5f9", color: "#475569", icon: "MapPin" };
 };
+
+export const getExpensePaymentMethod = (exp) => {
+  if (!exp) return 'efectivo';
+  if (exp.paymentMethod) {
+    return exp.paymentMethod.toLowerCase() === 'tarjeta' ? 'tarjeta' : 'efectivo';
+  }
+  const text = `${exp.paidBy || ''} ${exp.note || ''} ${exp.concept || ''}`.toLowerCase();
+  if (text.includes('tarjeta') || text.includes('nu') || text.includes('credit') || text.includes('debit')) {
+    return 'tarjeta';
+  }
+  return 'efectivo';
+};
+
 
 /**
  * Universal number parser supporting Latin American / Argentine / Colombian currency notation:

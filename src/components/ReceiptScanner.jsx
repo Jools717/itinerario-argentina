@@ -85,7 +85,7 @@ export default function ReceiptScanner({
   const [receiptDate, setReceiptDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [receiptTime, setReceiptTime] = useState('');
   const [amountARS, setAmountARS] = useState('');
-  const [paidBy, setPaidBy] = useState('Yo');
+  const [paymentMethod, setPaymentMethod] = useState('efectivo'); // 'efectivo' | 'tarjeta'
   const [receiptNote, setReceiptNote] = useState('');
 
   // Structured Line Items / Products breakdown
@@ -560,7 +560,8 @@ export default function ReceiptScanner({
       concept: `${cleanStore}`,
       category: defaultCategory,
       amountARS: Math.round(finalARS),
-      paidBy: paidBy,
+      paymentMethod: paymentMethod,
+      paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: fullNote,
       receipt_id: receiptId,
       items: itemsList
@@ -1185,16 +1186,41 @@ export default function ReceiptScanner({
 
               <div className="form-row">
                 <div className="form-group">
-                  <label>¿Quién pagó?</label>
-                  <select 
-                    value={paidBy} 
-                    onChange={(e) => setPaidBy(e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="Yo">Yo</option>
-                    <option value="Mi Amiga">Mi Amiga</option>
-                    <option value="Compartido">Compartido (50/50)</option>
-                  </select>
+                  <label>Método de Pago</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('efectivo')}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: paymentMethod === 'efectivo' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                        background: paymentMethod === 'efectivo' ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                        color: paymentMethod === 'efectivo' ? '#10b981' : 'inherit',
+                        fontWeight: paymentMethod === 'efectivo' ? '700' : '500',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      💵 Efectivo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('tarjeta')}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '8px',
+                        border: paymentMethod === 'tarjeta' ? '2px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
+                        background: paymentMethod === 'tarjeta' ? 'rgba(59, 130, 246, 0.14)' : 'transparent',
+                        color: paymentMethod === 'tarjeta' ? '#3b82f6' : 'inherit',
+                        fontWeight: paymentMethod === 'tarjeta' ? '700' : '500',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      💳 Tarjeta
+                    </button>
+                  </div>
                 </div>
 
                 <div className="form-group">

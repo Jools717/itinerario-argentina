@@ -53,7 +53,11 @@ export default function ActivityModal({
       return;
     }
     const cleanCost = parseCurrencyNumber(formData.costEstimatedARS) || 0;
-    onSave({ ...formData, costEstimatedARS: cleanCost });
+    onSave({ 
+      ...formData, 
+      dayNumber: Number(formData.dayNumber || currentDayNumber || 1), 
+      costEstimatedARS: cleanCost 
+    });
     onClose();
   };
 

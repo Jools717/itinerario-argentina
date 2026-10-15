@@ -144,11 +144,12 @@ export default function ItineraryView({
   const handleDropOnColumn = (e, targetDayNum) => {
     e.preventDefault();
     const actId = e.dataTransfer.getData('text/plain') || draggedActivityId;
+    const targetNum = Number(targetDayNum);
     if (actId && onMoveActivityDay) {
       const act = activities.find(a => a.id === actId);
-      if (act && act.dayNumber !== targetDayNum) {
-        onMoveActivityDay(actId, targetDayNum);
-        showMoveFeedback(act.title, targetDayNum);
+      if (act && Number(act.dayNumber) !== targetNum) {
+        onMoveActivityDay(actId, targetNum);
+        showMoveFeedback(act.title, targetNum);
       }
     }
     setDraggedActivityId(null);
@@ -158,9 +159,10 @@ export default function ItineraryView({
   // Handle 1-Click Move via Modal
   const executeQuickMove = (targetDayNum) => {
     if (!quickMoveActivity || !onMoveActivityDay) return;
-    if (quickMoveActivity.dayNumber !== targetDayNum) {
-      onMoveActivityDay(quickMoveActivity.id, targetDayNum);
-      showMoveFeedback(quickMoveActivity.title, targetDayNum);
+    const targetNum = Number(targetDayNum);
+    if (Number(quickMoveActivity.dayNumber) !== targetNum) {
+      onMoveActivityDay(quickMoveActivity.id, targetNum);
+      showMoveFeedback(quickMoveActivity.title, targetNum);
     }
     setQuickMoveActivity(null);
   };

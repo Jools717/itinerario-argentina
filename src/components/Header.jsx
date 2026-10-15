@@ -116,9 +116,14 @@ export default function Header({
                   🟢 Nube en Vivo
                 </span>
               )}
+              {cloudSyncStatus === 'saving' && (
+                <span className="cloud-badge syncing" title="Guardando cambios en Supabase">
+                  💾 Guardando...
+                </span>
+              )}
               {cloudSyncStatus === 'syncing' && (
-                <span className="cloud-badge syncing">
-                  🔄 Guardando...
+                <span className="cloud-badge syncing" title="Sincronizando con la nube de Supabase">
+                  🔄 Sincronizando...
                 </span>
               )}
               {cloudSyncStatus === 'offline' && (

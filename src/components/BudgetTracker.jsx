@@ -3,10 +3,15 @@ import {
   Wallet, DollarSign, ShoppingCart, Utensils, Bus, Ticket, ShoppingBag, 
   Receipt, Plus, Trash2, Home, ArrowRightLeft, TrendingUp, AlertTriangle, 
   CheckCircle2, Sparkles, RefreshCw, Gift, Camera, Tag, X, ChevronRight, Edit3,
-  CreditCard, Banknote, ShieldCheck
+  CreditCard, Banknote
 } from 'lucide-react';
-import { formatCurrencyARS, formatCurrencyUSD, convertUsdToArs, parseCurrencyNumber } from '../utils/helpers';
-import { CASH_EXCHANGE_INFO, SUBE_STATUS_INFO } from '../data/initialData';
+import { 
+  formatCurrencyARS, 
+  formatCurrencyUSD, 
+  convertUsdToArs, 
+  parseCurrencyNumber,
+  getExpensePaymentMethod
+} from '../utils/helpers';
 import DynamicExpenseSection from './DynamicExpenseSection';
 import NewCategoryModal from './NewCategoryModal';
 import ReceiptViewerModal from './ReceiptViewerModal';
@@ -80,9 +85,10 @@ export default function BudgetTracker({
   // General Form state
   const [newConcept, setNewConcept] = useState('');
   const [newCategory, setNewCategory] = useState('mercado');
+  const [newPaymentMethod, setNewPaymentMethod] = useState('efectivo'); // 'efectivo' | 'tarjeta'
+  const [paymentFilter, setPaymentFilter] = useState('all'); // 'all' | 'efectivo' | 'tarjeta'
   const [inputCurrency, setInputCurrency] = useState('ARS');
   const [rawAmount, setRawAmount] = useState('');
-  const [newPaidBy, setNewPaidBy] = useState('Yo');
   const [newNote, setNewNote] = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [isFetchingRate, setIsFetchingRate] = useState(false);
@@ -160,24 +166,17 @@ export default function BudgetTracker({
     .filter(e => e.category === 'transporte')
     .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
 
-  // Payment Breakdown
-  const tarjetaExpenses = mergedExpenses.filter(e => 
-    e.note?.toLowerCase().includes('tarjeta') || 
-    e.paidBy?.toLowerCase().includes('tarjeta')
-  );
-  const totalTarjetaARS = tarjetaExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+  // Payment Breakdown Dinámico (Tarjeta vs Efectivo)
+  const totalTarjetaARS = mergedExpenses
+    .filter(e => getExpensePaymentMethod(e) === 'tarjeta')
+    .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
 
-  const aleExpenses = mergedExpenses.filter(e => 
-    e.paidBy?.toLowerCase().includes('ale') || 
-    e.note?.toLowerCase().includes('ale')
-  );
-  const totalAleARS = aleExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+  const totalCashARS = mergedExpenses
+    .filter(e => getExpensePaymentMethod(e) === 'efectivo')
+    .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
 
-  const cashExpenses = mergedExpenses.filter(e => 
-    !e.note?.toLowerCase().includes('tarjeta') && 
-    !e.paidBy?.toLowerCase().includes('ale')
-  );
-  const totalCashSpentARS = cashExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+  const cardExpensesCount = mergedExpenses.filter(e => getExpensePaymentMethod(e) === 'tarjeta').length;
+  const cashExpensesCount = mergedExpenses.filter(e => getExpensePaymentMethod(e) === 'efectivo').length;
 
   const parsedRawAmount = parseCurrencyNumber(rawAmount);
 
@@ -203,7 +202,8 @@ export default function BudgetTracker({
       concept: newConcept.trim(),
       category: newCategory,
       amountARS: Math.round(computedARS),
-      paidBy: newPaidBy,
+      paymentMethod: newPaymentMethod,
+      paidBy: newPaymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: newNote.trim()
     };
 
@@ -224,9 +224,14 @@ export default function BudgetTracker({
     setIsReceiptModalOpen(true);
   };
 
-  const filteredExpenses = filterCat === 'all' 
-    ? mergedExpenses 
-    : mergedExpenses.filter(e => e.category === filterCat);
+  // Filtered expenses based on category AND paymentMethod filter
+  const filteredExpenses = mergedExpenses.filter(e => {
+    if (filterCat !== 'all' && e.category !== filterCat) return false;
+    const method = getExpensePaymentMethod(e);
+    if (paymentFilter === 'efectivo' && method !== 'efectivo') return false;
+    if (paymentFilter === 'tarjeta' && method !== 'tarjeta') return false;
+    return true;
+  });
 
   // Status badge for the $1,000 USD cap
   const getStatusBadge = () => {
@@ -428,97 +433,93 @@ export default function BudgetTracker({
             </div>
           </div>
 
-          {/* CONTROL REAL: CAMBIO DE DÓLARES, EFECTIVO Y TARJETA SUBE */}
-          <div className="real-trip-finance-banner" style={{
+          {/* SWITCH DE CONTROL DE PAGO: GENERAL / EFECTIVO / TARJETA */}
+          <div className="payment-filter-banner" style={{
             background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))',
             borderRadius: '16px',
-            border: '1px solid rgba(59, 130, 246, 0.3)',
-            padding: '20px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '16px 20px',
             marginBottom: '20px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
-                  <Banknote size={22} />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>
-                    Control de Gastos & Efectivo Real – Buenos Aires 🇦🇷
-                  </h4>
-                  <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-                    Dólares cambiados, entregas de efectivo sencillo y estado de la tarjeta SUBE
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600 }}>
-                  ✓ USD {CASH_EXCHANGE_INFO.initialUSDChanged} Cambiados
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px' }}>
+              <div>
+                <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: 700 }}>
+                  Filtro de Gastos por Medio de Pago
                 </span>
-                <span style={{ fontSize: '0.78rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(59, 130, 246, 0.3)', fontWeight: 600 }}>
-                  {formatCurrencyARS(CASH_EXCHANGE_INFO.totalArsAgreed)} Acordados
-                </span>
-              </div>
-            </div>
-
-            {/* 3 Column Highlights */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
-              
-              {/* Card 1: Cambio de Dólares & Entregas */}
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#38bdf8' }}>
-                  <DollarSign size={16} />
-                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Efectivo Recibido (Sencillo)</span>
-                </div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#38bdf8', marginBottom: '6px' }}>
-                  {formatCurrencyARS(CASH_EXCHANGE_INFO.totalCashReceived)}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.5' }}>
-                  <div>• Sábado (madrugada): <strong style={{ color: '#f8fafc' }}>ARS 250.000</strong></div>
-                  <div>• Lunes: <strong style={{ color: '#f8fafc' }}>ARS 240.000</strong></div>
-                  <div>• Pendiente por entregar: <strong style={{ color: '#fbbf24' }}>ARS 270.000</strong></div>
-                </div>
+                <h4 style={{ margin: '4px 0 0', fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                  {paymentFilter === 'all' && `Vista General: ${formatCurrencyARS(totalARS)} (Todos los gastos)`}
+                  {paymentFilter === 'efectivo' && `Solo Pagos en Efectivo: ${formatCurrencyARS(totalCashARS)} (${cashExpensesCount} gastos)`}
+                  {paymentFilter === 'tarjeta' && `Solo Pagos con Tarjeta: ${formatCurrencyARS(totalTarjetaARS)} (${cardExpensesCount} gastos)`}
+                </h4>
               </div>
 
-              {/* Card 2: Estado Tarjeta SUBE */}
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#a78bfa' }}>
-                  <Bus size={16} />
-                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Estado Tarjeta SUBE</span>
-                </div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#a78bfa', marginBottom: '6px' }}>
-                  {formatCurrencyARS(SUBE_STATUS_INFO.currentBalanceARS)} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>saldo actual</span>
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.5' }}>
-                  <div>• Recarga realizada: <strong style={{ color: '#f8fafc' }}>ARS 10.000</strong></div>
-                  <div>• Total utilizado: <strong style={{ color: '#f8fafc' }}>ARS 6.500</strong></div>
-                  <div style={{ color: '#cbd5e1', fontStyle: 'italic', marginTop: '2px' }}>Transporte lunes cubierto con SUBE previa.</div>
-                </div>
-              </div>
+              {/* Segmented Switch */}
+              <div style={{
+                display: 'inline-flex',
+                background: 'rgba(15, 23, 42, 0.9)',
+                padding: '4px',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                gap: '4px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setPaymentFilter('all')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: paymentFilter === 'all' ? '#3b82f6' : 'transparent',
+                    color: paymentFilter === 'all' ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: paymentFilter === 'all' ? '0 2px 8px rgba(59, 130, 246, 0.4)' : 'none'
+                  }}
+                >
+                  🌐 General ({mergedExpenses.length})
+                </button>
 
-              {/* Card 3: Desglose por Medio de Pago */}
-              <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f472b6' }}>
-                  <CreditCard size={16} />
-                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Medios de Pago Facturados</span>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#f8fafc', lineHeight: '1.6' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>💳 Tarjeta (Ecoparque, Nu...):</span>
-                    <strong>{formatCurrencyARS(totalTarjetaARS)}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>💵 Efectivo (Feria, Fonda...):</span>
-                    <strong>{formatCurrencyARS(totalCashSpentARS)}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#34d399' }}>
-                    <span>☕ Pagó Ale (Café & postre):</span>
-                    <strong>{formatCurrencyARS(totalAleARS)}</strong>
-                  </div>
-                </div>
-              </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentFilter('efectivo')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: paymentFilter === 'efectivo' ? '#10b981' : 'transparent',
+                    color: paymentFilter === 'efectivo' ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: paymentFilter === 'efectivo' ? '0 2px 8px rgba(16, 185, 129, 0.4)' : 'none'
+                  }}
+                >
+                  💵 Efectivo ({formatCurrencyARS(totalCashARS)})
+                </button>
 
+                <button
+                  type="button"
+                  onClick={() => setPaymentFilter('tarjeta')}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: paymentFilter === 'tarjeta' ? '#6366f1' : 'transparent',
+                    color: paymentFilter === 'tarjeta' ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: paymentFilter === 'tarjeta' ? '0 2px 8px rgba(99, 102, 241, 0.4)' : 'none'
+                  }}
+                >
+                  💳 Tarjeta ({formatCurrencyARS(totalTarjetaARS)})
+                </button>
+              </div>
             </div>
           </div>
 
@@ -670,16 +671,53 @@ export default function BudgetTracker({
                     </div>
 
                     <div className="form-group">
-                      <label>Pagado por</label>
-                      <select
-                        value={newPaidBy}
-                        onChange={(e) => setNewPaidBy(e.target.value)}
-                        className="form-select"
-                      >
-                        <option value="Yo">Yo</option>
-                        <option value="Mi Amiga">Mi Amiga</option>
-                        <option value="Compartido">Compartido (50/50)</option>
-                      </select>
+                      <label>Método de Pago</label>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setNewPaymentMethod('efectivo')}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: newPaymentMethod === 'efectivo' ? '2px solid #10b981' : '1px solid var(--border-color, #e2e8f0)',
+                            background: newPaymentMethod === 'efectivo' ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                            color: newPaymentMethod === 'efectivo' ? '#10b981' : 'inherit',
+                            fontWeight: newPaymentMethod === 'efectivo' ? '700' : '500',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <span>💵</span>
+                          <span>Efectivo</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setNewPaymentMethod('tarjeta')}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: newPaymentMethod === 'tarjeta' ? '2px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
+                            background: newPaymentMethod === 'tarjeta' ? 'rgba(59, 130, 246, 0.14)' : 'transparent',
+                            color: newPaymentMethod === 'tarjeta' ? '#3b82f6' : 'inherit',
+                            fontWeight: newPaymentMethod === 'tarjeta' ? '700' : '500',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <span>💳</span>
+                          <span>Tarjeta</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -770,6 +808,7 @@ export default function BudgetTracker({
                     const catObj = categories.find(c => c.id === exp.category) || { name: 'Varios', color: '#64748b' };
                     const expUSD = (Number(exp.amountARS) || 0) / safeRate;
                     const hasReceipt = Boolean(exp.receipt_id);
+                    const isCard = getExpensePaymentMethod(exp) === 'tarjeta';
 
                     return (
                       <div key={exp.id} className={`expense-item-row ${exp.isFromItinerary ? 'from-itinerary' : ''}`}>
@@ -805,7 +844,19 @@ export default function BudgetTracker({
                           </div>
                           <div className="expense-meta">
                             <span>{exp.date}</span>
-                            <span>• {exp.isFromItinerary ? 'Presupuesto de actividad' : `Pagó: ${exp.paidBy}`}</span>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              background: isCard ? 'rgba(59, 130, 246, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                              color: isCard ? '#3b82f6' : '#10b981'
+                            }}>
+                              {isCard ? '💳 Tarjeta' : '💵 Efectivo'}
+                            </span>
                             {exp.note && <span>• {exp.note}</span>}
                           </div>
                         </div>
