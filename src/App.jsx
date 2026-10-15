@@ -119,62 +119,21 @@ const dbToChecklist = (row) => ({
 
 export default function App() {
   // Persistence with LocalStorage
+  // Versioning to ensure clean sync with real Buenos Aires trip data
+  const DATA_VERSION = 'ba_oct2026_real_trip_clean_v4';
+
   const [activities, setActivities] = useState(() => {
     try {
+      const v = localStorage.getItem('ba_data_version');
+      if (v !== DATA_VERSION) {
+        localStorage.setItem('ba_data_version', DATA_VERSION);
+        localStorage.setItem('ba_itinerary_activities', JSON.stringify(INITIAL_ACTIVITIES));
+        localStorage.setItem('ba_itinerary_expenses', JSON.stringify(INITIAL_EXPENSES));
+        localStorage.setItem('ba_itinerary_checklist', JSON.stringify(INITIAL_CHECKLIST));
+        return INITIAL_ACTIVITIES;
+      }
       const saved = localStorage.getItem('ba_itinerary_activities');
-      if (!saved) return INITIAL_ACTIVITIES;
-      const parsed = JSON.parse(saved);
-      let updated = parsed;
-      let shouldSave = false;
-
-      // Migration: Remove any activities from day 5 onwards
-      const hasDay5Plus = updated.some(a => Number(a.dayNumber) >= 5);
-      if (hasDay5Plus) {
-        updated = updated.filter(a => Number(a.dayNumber) <= 4);
-        shouldSave = true;
-      }
-
-      // Migration Day 1: If day 1 contains old arrival/siesta activities, update day 1
-      const hasOldDay1 = updated.some(a => a.dayNumber === 1 && (a.id === 'act-1-5' || a.title?.includes('Aterrizaje') || a.title?.includes('casa de mi amiga')));
-      if (hasOldDay1) {
-        const withoutDay1 = updated.filter(a => a.dayNumber !== 1);
-        const newDay1 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 1);
-        updated = [...newDay1, ...withoutDay1].sort((a, b) => a.dayNumber - b.dayNumber);
-        shouldSave = true;
-      }
-
-      // Migration Day 2: Ensure Sunday contains all 9 activities
-      const day2Count = updated.filter(a => a.dayNumber === 2).length;
-      const hasOldDay2 = day2Count < 9 || !updated.some(a => a.id === 'act-2-9');
-      if (hasOldDay2) {
-        const withoutDay2 = updated.filter(a => a.dayNumber !== 2);
-        const newDay2 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 2);
-        updated = [...newDay2, ...withoutDay2].sort((a, b) => a.dayNumber - b.dayNumber);
-        shouldSave = true;
-      }
-
-      // Migration Day 3 (Lunes 12 - Recoleta): Ensure Day 3 contains the 6 Recoleta activities
-      const hasOldDay3 = !updated.some(a => a.dayNumber === 3 && a.title?.includes('Floralis'));
-      if (hasOldDay3) {
-        const withoutDay3 = updated.filter(a => a.dayNumber !== 3);
-        const newDay3 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 3);
-        updated = [...newDay3, ...withoutDay3].sort((a, b) => a.dayNumber - b.dayNumber);
-        shouldSave = true;
-      }
-
-      // Migration Day 4 (Martes 13 - Palermo): Ensure Day 4 contains the 5 Palermo activities
-      const hasOldDay4 = !updated.some(a => a.dayNumber === 4 && a.title?.includes('Japonés'));
-      if (hasOldDay4) {
-        const withoutDay4 = updated.filter(a => a.dayNumber !== 4);
-        const newDay4 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 4);
-        updated = [...newDay4, ...withoutDay4].sort((a, b) => a.dayNumber - b.dayNumber);
-        shouldSave = true;
-      }
-
-      if (shouldSave) {
-        localStorage.setItem('ba_itinerary_activities', JSON.stringify(updated));
-      }
-      return updated;
+      return saved ? JSON.parse(saved) : INITIAL_ACTIVITIES;
     } catch {
       return INITIAL_ACTIVITIES;
     }
@@ -182,6 +141,10 @@ export default function App() {
 
   const [expenses, setExpenses] = useState(() => {
     try {
+      const v = localStorage.getItem('ba_data_version');
+      if (v !== DATA_VERSION) {
+        return INITIAL_EXPENSES;
+      }
       const saved = localStorage.getItem('ba_itinerary_expenses');
       return saved ? JSON.parse(saved) : INITIAL_EXPENSES;
     } catch {
@@ -191,6 +154,10 @@ export default function App() {
 
   const [checklist, setChecklist] = useState(() => {
     try {
+      const v = localStorage.getItem('ba_data_version');
+      if (v !== DATA_VERSION) {
+        return INITIAL_CHECKLIST;
+      }
       const saved = localStorage.getItem('ba_itinerary_checklist');
       return saved ? JSON.parse(saved) : INITIAL_CHECKLIST;
     } catch {
@@ -223,9 +190,9 @@ export default function App() {
       if (parsed && parsed >= 100) {
         return parsed;
       }
-      return TRIP_INFO.defaultExchangeRateUSD || 1540;
+      return TRIP_INFO.defaultExchangeRateUSD || 3040;
     } catch {
-      return TRIP_INFO.defaultExchangeRateUSD || 1540;
+      return TRIP_INFO.defaultExchangeRateUSD || 3040;
     }
   });
 
@@ -311,51 +278,10 @@ export default function App() {
           .order('time', { ascending: true });
 
         if (!actErr && actData && actData.length > 0) {
-          const hasDay5InDb = actData.some(r => Number(r.day_number) >= 5);
-          if (hasDay5InDb) {
-            await supabase.from('activities').delete().gte('day_number', 5);
-          }
-          const filteredActData = actData.filter(r => Number(r.day_number) <= 4);
-          const day1InDb = filteredActData.filter(r => r.day_number === 1);
-          const needsDay1Update = day1InDb.some(r => r.id === 'act-1-5');
-          const day2InDb = filteredActData.filter(r => r.day_number === 2);
-          const needsDay2Update = day2InDb.length < 9 || !day2InDb.some(r => r.id === 'act-2-9');
-          const day3InDb = filteredActData.filter(r => r.day_number === 3);
-          const needsDay3Update = !day3InDb.some(r => r.title?.includes('Floralis'));
-          const day4InDb = filteredActData.filter(r => r.day_number === 4);
-          const needsDay4Update = !day4InDb.some(r => r.title?.includes('Japonés'));
-
-          if (needsDay1Update || needsDay2Update || needsDay3Update || needsDay4Update || hasDay5InDb) {
-            if (needsDay1Update) {
-              await supabase.from('activities').delete().eq('day_number', 1);
-              const newDay1 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 1).map(activityToDb);
-              await supabase.from('activities').insert(newDay1);
-            }
-            if (needsDay2Update) {
-              await supabase.from('activities').delete().eq('day_number', 2);
-              const newDay2 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 2).map(activityToDb);
-              await supabase.from('activities').insert(newDay2);
-            }
-            if (needsDay3Update) {
-              await supabase.from('activities').delete().eq('day_number', 3);
-              const newDay3 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 3).map(activityToDb);
-              await supabase.from('activities').insert(newDay3);
-            }
-            if (needsDay4Update) {
-              await supabase.from('activities').delete().eq('day_number', 4);
-              const newDay4 = INITIAL_ACTIVITIES.filter(a => a.dayNumber === 4).map(activityToDb);
-              await supabase.from('activities').insert(newDay4);
-            }
-            const { data: refreshed } = await supabase.from('activities').select('*').order('day_number').order('time');
-            if (isMounted && refreshed) {
-              setActivities(refreshed.filter(r => Number(r.day_number) <= 4).map(dbToActivity));
-              return;
-            }
-          }
-          if (isMounted) setActivities(filteredActData.map(dbToActivity));
+          if (isMounted) setActivities(actData.map(dbToActivity));
         } else if (!actErr && actData && actData.length === 0) {
-          // Populate activities table row by row for the first time
           await supabase.from('activities').insert(INITIAL_ACTIVITIES.map(activityToDb));
+          if (isMounted) setActivities(INITIAL_ACTIVITIES);
         }
 
         // 2. Fetch Expenses

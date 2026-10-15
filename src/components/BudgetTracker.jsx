@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   Wallet, DollarSign, ShoppingCart, Utensils, Bus, Ticket, ShoppingBag, 
   Receipt, Plus, Trash2, Home, ArrowRightLeft, TrendingUp, AlertTriangle, 
-  CheckCircle2, Sparkles, RefreshCw, Gift, Camera, Tag, X, ChevronRight, Edit3 
+  CheckCircle2, Sparkles, RefreshCw, Gift, Camera, Tag, X, ChevronRight, Edit3,
+  CreditCard, Banknote, ShieldCheck
 } from 'lucide-react';
 import { formatCurrencyARS, formatCurrencyUSD, convertUsdToArs, parseCurrencyNumber } from '../utils/helpers';
+import { CASH_EXCHANGE_INFO, SUBE_STATUS_INFO } from '../data/initialData';
 import DynamicExpenseSection from './DynamicExpenseSection';
 import NewCategoryModal from './NewCategoryModal';
 import ReceiptViewerModal from './ReceiptViewerModal';
@@ -157,6 +159,25 @@ export default function BudgetTracker({
   const transporteTotalARS = mergedExpenses
     .filter(e => e.category === 'transporte')
     .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+
+  // Payment Breakdown
+  const tarjetaExpenses = mergedExpenses.filter(e => 
+    e.note?.toLowerCase().includes('tarjeta') || 
+    e.paidBy?.toLowerCase().includes('tarjeta')
+  );
+  const totalTarjetaARS = tarjetaExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+
+  const aleExpenses = mergedExpenses.filter(e => 
+    e.paidBy?.toLowerCase().includes('ale') || 
+    e.note?.toLowerCase().includes('ale')
+  );
+  const totalAleARS = aleExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+
+  const cashExpenses = mergedExpenses.filter(e => 
+    !e.note?.toLowerCase().includes('tarjeta') && 
+    !e.paidBy?.toLowerCase().includes('ale')
+  );
+  const totalCashSpentARS = cashExpenses.reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
 
   const parsedRawAmount = parseCurrencyNumber(rawAmount);
 
@@ -404,6 +425,100 @@ export default function BudgetTracker({
                   style={{ width: `${percentUsed}%` }}
                 ></div>
               </div>
+            </div>
+          </div>
+
+          {/* CONTROL REAL: CAMBIO DE DÓLARES, EFECTIVO Y TARJETA SUBE */}
+          <div className="real-trip-finance-banner" style={{
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))',
+            borderRadius: '16px',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            padding: '20px',
+            marginBottom: '20px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+                  <Banknote size={22} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#f8fafc' }}>
+                    Control de Gastos & Efectivo Real – Buenos Aires 🇦🇷
+                  </h4>
+                  <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
+                    Dólares cambiados, entregas de efectivo sencillo y estado de la tarjeta SUBE
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600 }}>
+                  ✓ USD {CASH_EXCHANGE_INFO.initialUSDChanged} Cambiados
+                </span>
+                <span style={{ fontSize: '0.78rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '4px 10px', borderRadius: '20px', border: '1px solid rgba(59, 130, 246, 0.3)', fontWeight: 600 }}>
+                  {formatCurrencyARS(CASH_EXCHANGE_INFO.totalArsAgreed)} Acordados
+                </span>
+              </div>
+            </div>
+
+            {/* 3 Column Highlights */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px' }}>
+              
+              {/* Card 1: Cambio de Dólares & Entregas */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#38bdf8' }}>
+                  <DollarSign size={16} />
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Efectivo Recibido (Sencillo)</span>
+                </div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#38bdf8', marginBottom: '6px' }}>
+                  {formatCurrencyARS(CASH_EXCHANGE_INFO.totalCashReceived)}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.5' }}>
+                  <div>• Sábado (madrugada): <strong style={{ color: '#f8fafc' }}>ARS 250.000</strong></div>
+                  <div>• Lunes: <strong style={{ color: '#f8fafc' }}>ARS 240.000</strong></div>
+                  <div>• Pendiente por entregar: <strong style={{ color: '#fbbf24' }}>ARS 270.000</strong></div>
+                </div>
+              </div>
+
+              {/* Card 2: Estado Tarjeta SUBE */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#a78bfa' }}>
+                  <Bus size={16} />
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Estado Tarjeta SUBE</span>
+                </div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#a78bfa', marginBottom: '6px' }}>
+                  {formatCurrencyARS(SUBE_STATUS_INFO.currentBalanceARS)} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: '#94a3b8' }}>saldo actual</span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.5' }}>
+                  <div>• Recarga realizada: <strong style={{ color: '#f8fafc' }}>ARS 10.000</strong></div>
+                  <div>• Total utilizado: <strong style={{ color: '#f8fafc' }}>ARS 6.500</strong></div>
+                  <div style={{ color: '#cbd5e1', fontStyle: 'italic', marginTop: '2px' }}>Transporte lunes cubierto con SUBE previa.</div>
+                </div>
+              </div>
+
+              {/* Card 3: Desglose por Medio de Pago */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#f472b6' }}>
+                  <CreditCard size={16} />
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>Medios de Pago Facturados</span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#f8fafc', lineHeight: '1.6' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>💳 Tarjeta (Ecoparque, Nu...):</span>
+                    <strong>{formatCurrencyARS(totalTarjetaARS)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>💵 Efectivo (Feria, Fonda...):</span>
+                    <strong>{formatCurrencyARS(totalCashSpentARS)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#34d399' }}>
+                    <span>☕ Pagó Ale (Café & postre):</span>
+                    <strong>{formatCurrencyARS(totalAleARS)}</strong>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 

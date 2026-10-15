@@ -112,7 +112,7 @@ export default function ItineraryView({
   };
 
   const goToNextDay = () => {
-    if (selectedDayNumber < 14) setSelectedDayNumber(selectedDayNumber + 1);
+    if (selectedDayNumber < INITIAL_DAYS.length) setSelectedDayNumber(selectedDayNumber + 1);
   };
 
   // Handle Drag & Drop events
