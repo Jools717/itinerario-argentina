@@ -7693,6 +7693,384 @@ body {
     flex: 1;
     justify-content: center;
   }
+
+  /* Budget / Wallet Mobile Responsiveness */
+  .budget-cap-hero-card {
+    padding: 16px 14px;
+    gap: 14px;
+  }
+
+  .budget-cap-top-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .wallet-brand-group {
+    min-width: 0;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .wallet-avatar-badge {
+    width: 44px;
+    height: 44px;
+  }
+
+  .wallet-title-row h3 {
+    font-size: 17px;
+  }
+
+  .blue-rate-card {
+    width: 100%;
+    padding: 12px 14px;
+  }
+
+  .rate-preset-chips {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .progress-labels-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .progress-left-label,
+  .progress-right-label {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    width: 100%;
+  }
+
+  .spent-split-hint {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .liquidity-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .liquidity-card {
+    padding: 14px 16px;
+  }
+
+  .liquidity-ars {
+    font-size: 1.45rem;
+  }
+
+  .payment-filter-banner {
+    padding: 14px 16px;
+  }
+
+  .payment-filter-banner-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .payment-filter-switch {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    gap: 6px;
+  }
+
+  .btn-payment-filter {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    text-align: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .budget-kpis-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .kpi-card {
+    padding: 12px;
+  }
+
+  .kpi-ars-highlight {
+    font-size: 16px;
+  }
+
+  /* Expense item rows on mobile */
+  .expense-item-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .expense-concept-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .expense-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .expense-amount-group {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px dashed var(--border-subtle);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+
+  .expense-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+/* Base Styles for Liquidity Cards & Payment Filter Banner */
+.liquidity-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.liquidity-card {
+  border-radius: 16px;
+  padding: 18px 20px;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.liquidity-card.cash-card {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(6, 78, 59, 0.25));
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.liquidity-card.card-card {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(49, 46, 129, 0.25));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+.liquidity-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.liquidity-badge-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.liquidity-badge-title.cash {
+  color: #10b981;
+}
+
+.liquidity-badge-title.card {
+  color: #818cf8;
+}
+
+.liquidity-pct-chip {
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.liquidity-pct-chip.cash {
+  background: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
+.liquidity-pct-chip.card {
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+}
+
+.liquidity-amount-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.liquidity-ars {
+  margin: 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.liquidity-usd {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.liquidity-subtitle {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+}
+
+.liquidity-breakdown {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.breakdown-row strong {
+  color: #e2e8f0;
+}
+
+.text-red {
+  color: #f87171 !important;
+}
+
+.text-amber {
+  color: #fbbf24 !important;
+}
+
+.text-indigo {
+  color: #818cf8 !important;
+}
+
+/* Payment Filter Banner Base Styles */
+.payment-filter-banner {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.payment-filter-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.payment-filter-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-super-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.filter-main-heading {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.payment-filter-switch {
+  display: inline-flex;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 4px;
+}
+
+.btn-payment-filter {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-payment-filter:hover {
+  color: #f8fafc;
+}
+
+.btn-payment-filter.active-all {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+
+.btn-payment-filter.active-cash {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.btn-payment-filter.active-card {
+  background: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+/* Extra small screens (Phones under 480px) */
+@media (max-width: 480px) {
+  .budget-kpis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header-brand {
+    gap: 10px;
+  }
+
+  .brand-logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .brand-title {
+    font-size: 19px;
+  }
+
+  .brand-subtitle {
+    font-size: 12px;
+  }
 }
 
 

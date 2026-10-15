@@ -17,7 +17,7 @@ import {
 } from './data/initialData';
 
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
-import { parseCurrencyNumber } from './utils/helpers';
+import { parseCurrencyNumber, isActivityTrackedInExpenses } from './utils/helpers';
 
 // Helper mappers between App state and Normalized Database rows
 const activityToDb = (act) => ({
@@ -119,15 +119,24 @@ const dbToChecklist = (row) => ({
 });
 
 export default function App() {
+  // Purge legacy local cache to match clean database wipe
+  try {
+    if (localStorage.getItem('ba_trip_wipe_clean_v1') !== 'true') {
+      localStorage.removeItem('ba_itinerary_activities');
+      localStorage.removeItem('ba_itinerary_expenses');
+      localStorage.removeItem('ba_itinerary_checklist');
+      localStorage.removeItem('ba_itinerary_receipts');
+      localStorage.setItem('ba_trip_wipe_clean_v1', 'true');
+    }
+  } catch {}
+
   // Persistence with LocalStorage
   const [activities, setActivities] = useState(() => {
     try {
       const saved = localStorage.getItem('ba_itinerary_activities');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
       return INITIAL_ACTIVITIES;
     } catch {
@@ -140,9 +149,7 @@ export default function App() {
       const saved = localStorage.getItem('ba_itinerary_expenses');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
       return INITIAL_EXPENSES;
     } catch {
@@ -155,9 +162,7 @@ export default function App() {
       const saved = localStorage.getItem('ba_itinerary_checklist');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
+        if (Array.isArray(parsed)) return parsed;
       }
       return INITIAL_CHECKLIST;
     } catch {
@@ -290,80 +295,28 @@ export default function App() {
         // 1. Process Activities
         if (actRes.status === 'fulfilled' && !actRes.value.error && actRes.value.data && isMounted) {
           const remoteActs = actRes.value.data.map(dbToActivity);
-          if (remoteActs.length === 0) {
-            await supabase.from('activities').insert(INITIAL_ACTIVITIES.map(activityToDb));
-            if (isMounted) setActivities(INITIAL_ACTIVITIES);
-          } else {
-            setActivities(currentActs => {
-              const remoteMap = new Map(remoteActs.map(r => [r.id, r]));
-              const localOnly = currentActs.filter(l => !remoteMap.has(l.id));
-
-              if (localOnly.length > 0) {
-                supabase.from('activities').upsert(localOnly.map(activityToDb))
-                  .then(({ error }) => {
-                    if (error) console.warn("Error uploading local activities to Supabase:", error);
-                  });
-              }
-
-              const merged = [...remoteActs, ...localOnly];
-              try {
-                localStorage.setItem('ba_itinerary_activities', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          }
+          setActivities(remoteActs);
+          try {
+            localStorage.setItem('ba_itinerary_activities', JSON.stringify(remoteActs));
+          } catch {}
         }
 
         // 2. Process Expenses
         if (expRes.status === 'fulfilled' && !expRes.value.error && expRes.value.data && isMounted) {
           const remoteExps = expRes.value.data.map(dbToExpense);
-          if (remoteExps.length === 0) {
-            await supabase.from('expenses').insert(INITIAL_EXPENSES.map(expenseToDb));
-          } else {
-            setExpenses(currentExps => {
-              const remoteMap = new Map(remoteExps.map(r => [r.id, r]));
-              const localOnly = currentExps.filter(l => !remoteMap.has(l.id));
-
-              if (localOnly.length > 0) {
-                supabase.from('expenses').upsert(localOnly.map(expenseToDb))
-                  .then(({ error }) => {
-                    if (error) console.warn("Error uploading local expenses to Supabase:", error);
-                  });
-              }
-
-              const merged = [...remoteExps, ...localOnly];
-              try {
-                localStorage.setItem('ba_itinerary_expenses', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          }
+          setExpenses(remoteExps);
+          try {
+            localStorage.setItem('ba_itinerary_expenses', JSON.stringify(remoteExps));
+          } catch {}
         }
 
         // 3. Process Checklist
         if (chkRes.status === 'fulfilled' && !chkRes.value.error && chkRes.value.data && isMounted) {
           const remoteChks = chkRes.value.data.map(dbToChecklist);
-          if (remoteChks.length === 0) {
-            await supabase.from('checklist').insert(INITIAL_CHECKLIST.map(checklistToDb));
-          } else {
-            setChecklist(currentChks => {
-              const remoteMap = new Map(remoteChks.map(r => [r.id, r]));
-              const localOnly = currentChks.filter(l => !remoteMap.has(l.id));
-
-              if (localOnly.length > 0) {
-                supabase.from('checklist').upsert(localOnly.map(checklistToDb))
-                  .then(({ error }) => {
-                    if (error) console.warn("Error uploading local checklist to Supabase:", error);
-                  });
-              }
-
-              const merged = [...remoteChks, ...localOnly];
-              try {
-                localStorage.setItem('ba_itinerary_checklist', JSON.stringify(merged));
-              } catch {}
-              return merged;
-            });
-          }
+          setChecklist(remoteChks);
+          try {
+            localStorage.setItem('ba_itinerary_checklist', JSON.stringify(remoteChks));
+          } catch {}
         }
 
         // 4. Process Settings
@@ -522,11 +475,14 @@ export default function App() {
   };
 
   const handleSaveActivity = async (formData) => {
+    const cleanCost = Math.max(0, parseCurrencyNumber(formData.costEstimatedARS) || 0);
+
     if (editingActivity) {
       const updated = { 
         ...formData, 
         id: editingActivity.id,
-        dayNumber: Number(formData.dayNumber || editingActivity.dayNumber || 1)
+        dayNumber: Number(formData.dayNumber || editingActivity.dayNumber || 1),
+        costEstimatedARS: cleanCost
       };
       const nextActs = activities.map(a => a.id === editingActivity.id ? updated : a);
       setActivities(nextActs);
@@ -543,11 +499,44 @@ export default function App() {
         }
         setCloudSyncStatus('connected');
       }
+
+      // BIDIRECTIONAL MIRROR SYNC TO EXPENSES:
+      // If an expense in `expenses` matches this activity, mirror its price and concept!
+      const matchingExpenses = expenses.filter(e => 
+        e.activityId === updated.id || 
+        isActivityTrackedInExpenses(updated, [e])
+      );
+      if (matchingExpenses.length > 0) {
+        const nextExpenses = expenses.map(e => {
+          if (matchingExpenses.some(m => m.id === e.id)) {
+            return {
+              ...e,
+              activityId: updated.id,
+              amountARS: cleanCost,
+              concept: updated.title
+            };
+          }
+          return e;
+        });
+        setExpenses(nextExpenses);
+        try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
+        if (isSupabaseConfigured && supabase) {
+          for (const m of matchingExpenses) {
+            supabase.from('expenses').upsert(expenseToDb({
+              ...m,
+              activityId: updated.id,
+              amountARS: cleanCost,
+              concept: updated.title
+            })).catch(console.error);
+          }
+        }
+      }
     } else {
       const newActivity = {
         ...formData,
         id: 'act-' + Date.now(),
-        dayNumber: Number(formData.dayNumber || modalDayNumber || selectedDayNumber || 1)
+        dayNumber: Number(formData.dayNumber || modalDayNumber || selectedDayNumber || 1),
+        costEstimatedARS: cleanCost
       };
       const nextActs = [...activities, newActivity];
       setActivities(nextActs);
@@ -570,9 +559,24 @@ export default function App() {
 
   const handleDeleteActivity = async (id) => {
     if (window.confirm("¿Seguro que deseas eliminar este plan del itinerario?")) {
+      const actToDelete = activities.find(a => a.id === id);
       const nextActs = activities.filter(a => a.id !== id);
       setActivities(nextActs);
       try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
+
+      // Also clean up any mirror expense linked to this activity
+      const linkedExpenseIds = expenses
+        .filter(e => e.activityId === id || (actToDelete && isActivityTrackedInExpenses(actToDelete, [e])))
+        .map(e => e.id);
+
+      if (linkedExpenseIds.length > 0) {
+        const nextExpenses = expenses.filter(e => !linkedExpenseIds.includes(e.id));
+        setExpenses(nextExpenses);
+        try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
+        if (isSupabaseConfigured && supabase) {
+          supabase.from('expenses').delete().in('id', linkedExpenseIds).catch(console.error);
+        }
+      }
 
       if (isSupabaseConfigured && supabase) {
         setCloudSyncStatus('saving');
@@ -615,6 +619,7 @@ export default function App() {
 
   // Handlers for Expenses & Scanned Receipts
   const handleAddExpense = async (expense, mediaItem) => {
+    const cost = Math.max(0, parseCurrencyNumber(expense.amountARS) || 0);
     const nextExpenses = [expense, ...expenses];
     setExpenses(nextExpenses);
     try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
@@ -625,6 +630,18 @@ export default function App() {
         try { localStorage.setItem('ba_itinerary_receipts', JSON.stringify(nextReceipts)); } catch {}
         return nextReceipts;
       });
+    }
+
+    // Mirror to matching activity if linked
+    const actId = expense.activityId || activities.find(a => isActivityTrackedInExpenses(a, [expense]))?.id;
+    if (actId) {
+      const nextActs = activities.map(a => a.id === actId ? { ...a, costEstimatedARS: cost } : a);
+      setActivities(nextActs);
+      try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
+      if (isSupabaseConfigured && supabase) {
+        const fullAct = nextActs.find(a => a.id === actId);
+        if (fullAct) supabase.from('activities').upsert(activityToDb(fullAct)).catch(console.error);
+      }
     }
 
     if (isSupabaseConfigured && supabase) {
@@ -650,62 +667,111 @@ export default function App() {
     if (isSupabaseConfigured && supabase) {
       setCloudSyncStatus('saving');
       try {
-        await supabase.from('activities').update({ cost_estimated_ars: cost }).eq('id', activityId);
+        const fullAct = nextActs.find(a => a.id === activityId);
+        if (fullAct) {
+          await supabase.from('activities').upsert(activityToDb(fullAct));
+        }
       } catch (err) {
         console.error("Error al actualizar costo en Supabase:", err);
       }
       setCloudSyncStatus('connected');
     }
+
+    // MIRROR TO EXPENSES:
+    const act = nextActs.find(a => a.id === activityId);
+    if (act) {
+      const matchingExpenses = expenses.filter(e => e.activityId === activityId || isActivityTrackedInExpenses(act, [e]));
+      if (matchingExpenses.length > 0) {
+        const nextExpenses = expenses.map(e => {
+          if (matchingExpenses.some(m => m.id === e.id)) {
+            return { ...e, amountARS: cost };
+          }
+          return e;
+        });
+        setExpenses(nextExpenses);
+        try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
+        if (isSupabaseConfigured && supabase) {
+          for (const m of matchingExpenses) {
+            supabase.from('expenses').upsert(expenseToDb({ ...m, amountARS: cost })).catch(console.error);
+          }
+        }
+      }
+    }
   };
 
   const handleUpdateExpense = async (updatedExpense) => {
-    // If it's an itinerary expense
-    if (updatedExpense.isFromItinerary || (typeof updatedExpense.id === 'string' && updatedExpense.id.startsWith('itinerary-'))) {
-      const actId = updatedExpense.activityId || updatedExpense.id.replace('itinerary-', '');
-      const cost = Math.max(0, parseCurrencyNumber(updatedExpense.amountARS) || 0);
-      const title = updatedExpense.concept?.trim();
+    const cost = Math.max(0, parseCurrencyNumber(updatedExpense.amountARS) || 0);
+    const title = updatedExpense.concept?.trim();
+    const isItineraryMirror = Boolean(
+      updatedExpense.isFromItinerary || 
+      (typeof updatedExpense.id === 'string' && updatedExpense.id.startsWith('itinerary-'))
+    );
 
-      const nextActs = activities.map(a => a.id === actId ? { 
-        ...a, 
-        costEstimatedARS: cost,
-        ...(title ? { title } : {}) 
-      } : a);
+    // Identify linked activity ID (direct or inferred via title match):
+    const actId = updatedExpense.activityId || 
+      (typeof updatedExpense.id === 'string' && updatedExpense.id.startsWith('itinerary-') ? updatedExpense.id.replace('itinerary-', '') : null) ||
+      activities.find(a => isActivityTrackedInExpenses(a, [updatedExpense]))?.id;
+
+    // 1. Synchronize Activity Mirror (Itinerary Plan Card)
+    if (actId) {
+      const nextActs = activities.map(a => {
+        if (a.id === actId) {
+          return {
+            ...a,
+            costEstimatedARS: cost,
+            ...(title ? { title } : {})
+          };
+        }
+        return a;
+      });
       setActivities(nextActs);
       try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
 
       if (isSupabaseConfigured && supabase) {
+        const fullAct = nextActs.find(a => a.id === actId);
+        if (fullAct) {
+          supabase.from('activities').upsert(activityToDb(fullAct)).catch(console.error);
+        }
+      }
+    }
+
+    // 2. Synchronize Expense Record (Billetera)
+    if (!isItineraryMirror) {
+      const finalized = {
+        ...updatedExpense,
+        amountARS: cost,
+        concept: title || 'Gasto',
+        activityId: actId || updatedExpense.activityId || null
+      };
+      const nextExpenses = expenses.map(e => e.id === finalized.id ? finalized : e);
+      setExpenses(nextExpenses);
+      try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
+
+      if (isSupabaseConfigured && supabase) {
         setCloudSyncStatus('saving');
         try {
-          const updates = { cost_estimated_ars: cost };
-          if (title) updates.title = title;
-          await supabase.from('activities').update(updates).eq('id', actId);
+          await supabase.from('expenses').upsert(expenseToDb(finalized));
         } catch (err) {
-          console.error("Error al actualizar actividad en Supabase:", err);
+          console.error("Error al actualizar gasto en Supabase:", err);
         }
         setCloudSyncStatus('connected');
       }
-      return;
-    }
-
-    // Regular expense item
-    const cost = Math.max(0, parseCurrencyNumber(updatedExpense.amountARS) || 0);
-    const finalized = { 
-      ...updatedExpense, 
-      amountARS: cost,
-      concept: updatedExpense.concept?.trim() || 'Gasto'
-    };
-    const nextExpenses = expenses.map(e => e.id === finalized.id ? finalized : e);
-    setExpenses(nextExpenses);
-    try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
-
-    if (isSupabaseConfigured && supabase) {
-      setCloudSyncStatus('saving');
-      try {
-        await supabase.from('expenses').upsert(expenseToDb(finalized));
-      } catch (err) {
-        console.error("Error al actualizar gasto en Supabase:", err);
+    } else {
+      // It is an itinerary plan mirror. If an expense in `expenses` is linked to this activity, sync it too!
+      const matchingExp = expenses.find(e => e.activityId === actId || isActivityTrackedInExpenses({ id: actId, title }, [e]));
+      if (matchingExp) {
+        const finalized = {
+          ...matchingExp,
+          amountARS: cost,
+          concept: title || matchingExp.concept
+        };
+        const nextExpenses = expenses.map(e => e.id === matchingExp.id ? finalized : e);
+        setExpenses(nextExpenses);
+        try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
+        if (isSupabaseConfigured && supabase) {
+          supabase.from('expenses').upsert(expenseToDb(finalized)).catch(console.error);
+        }
       }
-      setCloudSyncStatus('connected');
     }
   };
 
@@ -721,6 +787,18 @@ export default function App() {
     setExpenses(nextExpenses);
     try { localStorage.setItem('ba_itinerary_expenses', JSON.stringify(nextExpenses)); } catch {}
 
+    // If this expense was mirroring an activity, reset that activity's cost too
+    const actId = exp?.activityId || (exp ? activities.find(a => isActivityTrackedInExpenses(a, [exp]))?.id : null);
+    if (actId) {
+      const nextActs = activities.map(a => a.id === actId ? { ...a, costEstimatedARS: 0 } : a);
+      setActivities(nextActs);
+      try { localStorage.setItem('ba_itinerary_activities', JSON.stringify(nextActs)); } catch {}
+      if (isSupabaseConfigured && supabase) {
+        const fullAct = nextActs.find(a => a.id === actId);
+        if (fullAct) supabase.from('activities').upsert(activityToDb(fullAct)).catch(console.error);
+      }
+    }
+
     if (isSupabaseConfigured && supabase) {
       setCloudSyncStatus('saving');
       try {
@@ -731,10 +809,10 @@ export default function App() {
             try { localStorage.setItem('ba_itinerary_receipts', JSON.stringify(nextReceipts)); } catch {}
             return nextReceipts;
           });
-          await supabase.from('media_manager').delete().eq('uuid', exp.receipt_id);
+          supabase.from('media_manager').delete().eq('uuid', exp.receipt_id).catch(console.error);
         }
       } catch (err) {
-        console.error("Error al eliminar en Supabase:", err);
+        console.error("Error al eliminar gasto en Supabase:", err);
       }
       setCloudSyncStatus('connected');
     }
@@ -877,9 +955,17 @@ export default function App() {
     }
   };
 
-  const totalItineraryARS = activities.reduce((sum, a) => sum + (parseCurrencyNumber(a.costEstimatedARS) || 0), 0);
+  // Only add itinerary activities that are not already tracked in expenses to avoid double counting
+  const untrackedItineraryARS = activities
+    .filter(a => {
+      const cost = parseCurrencyNumber(a.costEstimatedARS) || 0;
+      if (cost <= 0) return false;
+      return !isActivityTrackedInExpenses(a, expenses);
+    })
+    .reduce((sum, a) => sum + (parseCurrencyNumber(a.costEstimatedARS) || 0), 0);
+
   const totalExpensesARS = expenses.reduce((sum, e) => sum + (parseCurrencyNumber(e.amountARS) || 0), 0);
-  const totalSpentARS = totalItineraryARS + totalExpensesARS;
+  const totalSpentARS = untrackedItineraryARS + totalExpensesARS;
   const completedActivitiesCount = activities.filter(a => a.completed).length;
 
   return (

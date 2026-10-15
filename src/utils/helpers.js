@@ -46,6 +46,63 @@ export const getCategoryBadge = (category) => {
   return map[category] || { label: "General", bg: "#f1f5f9", color: "#475569", icon: "MapPin" };
 };
 
+export const normalizeText = (text) => {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .replace(/[\p{Emoji}\p{Extended_Pictographic}]/gu, '') // remove emojis
+    .replace(/[^a-z0-9]/g, '') // keep only alphanumeric
+    .trim();
+};
+
+export const isActivityTrackedInExpenses = (activity, expenses = []) => {
+  if (!activity) return false;
+  const actId = activity.id;
+  const cleanActTitle = normalizeText(activity.title);
+
+  // Special case: Feria de San Telmo (act-2-2) is tracked by the individual shopping items (exp-5 to exp-9)
+  if (actId === 'act-2-2') {
+    const hasSanTelmoItems = expenses.some(e => 
+      ['exp-5', 'exp-6', 'exp-7', 'exp-8', 'exp-9'].includes(e.id) ||
+      (e.concept && (e.concept.toLowerCase().includes('pezuña') || e.concept.toLowerCase().includes('imanes') || e.concept.toLowerCase().includes('mates')))
+    );
+    if (hasSanTelmoItems) return true;
+  }
+
+  return expenses.some(exp => {
+    // 1. Direct activityId match
+    if (exp.activityId && (exp.activityId === actId || exp.activityId === actId.replace('itinerary-', ''))) {
+      return true;
+    }
+    // 2. ID match
+    if (exp.id === actId || exp.id === `itinerary-${actId}` || exp.id === `exp-${actId}`) {
+      return true;
+    }
+    // 3. Concept title match
+    const cleanExpConcept = normalizeText(exp.concept);
+    if (!cleanExpConcept || !cleanActTitle) return false;
+
+    if (cleanExpConcept === cleanActTitle) return true;
+
+    // Substring match
+    if (cleanActTitle.includes(cleanExpConcept) || cleanExpConcept.includes(cleanActTitle)) {
+      return true;
+    }
+
+    // Keyword matching for high confidence phrases
+    const keywords = ['ecoparque', 'bellgamba', 'alberro', 'recoleta', 'puertomadero', 'sube', 'alfajores', 'discoteca'];
+    for (const kw of keywords) {
+      if (cleanActTitle.includes(kw) && cleanExpConcept.includes(kw)) {
+        return true;
+      }
+    }
+
+    return false;
+  });
+};
+
 export const getExpensePaymentMethod = (exp) => {
   if (!exp) return 'efectivo';
   if (exp.paymentMethod) {
