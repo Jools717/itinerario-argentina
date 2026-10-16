@@ -150,19 +150,19 @@ export default function ActivityModal({
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <span className="modal-icon-badge">
-              {entryType === 'compras' ? <ShoppingBag size={18} /> : entryType === 'nota' ? <StickyNote size={18} /> : <Sparkles size={18} />}
+            <span className={`modal-icon-badge badge-${entryType}`}>
+              {entryType === 'compras' ? <ShoppingBag size={20} /> : entryType === 'nota' ? <StickyNote size={20} /> : <Sparkles size={20} />}
             </span>
             <div>
-              <span className="modal-type-chip">
-                Día {formData.dayNumber} · {entryType === 'compras' ? '🛍️ Lote de Compras' : entryType === 'nota' ? '📝 Nota / Recordatorio' : '📍 Plan de Itinerario'}
+              <span className={`modal-type-chip chip-${entryType}`}>
+                Día {formData.dayNumber} · {entryType === 'compras' ? 'Lote de Compras' : entryType === 'nota' ? 'Nota / Recordatorio' : 'Plan de Itinerario'}
               </span>
               <h3>
                 {editingActivity ? "Editar Elemento" : "Agregar al Itinerario"}
               </h3>
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Cerrar modal">
             <X size={20} />
           </button>
         </div>
@@ -172,38 +172,38 @@ export default function ActivityModal({
           <div className="entry-type-selector-tabs">
             <button
               type="button"
-              className={`entry-type-tab-btn ${entryType === 'plan' ? 'active' : ''}`}
+              className={`entry-type-tab-btn tab-plan ${entryType === 'plan' ? 'active' : ''}`}
               onClick={() => {
                 setEntryType('plan');
                 setFormData(prev => ({ ...prev, category: 'gastronomia' }));
               }}
             >
-              <Sparkles size={16} />
-              <span>📍 Plan / Visita</span>
+              <MapPin size={16} />
+              <span>Plan / Visita</span>
             </button>
 
             <button
               type="button"
-              className={`entry-type-tab-btn ${entryType === 'compras' ? 'active' : ''}`}
+              className={`entry-type-tab-btn tab-compras ${entryType === 'compras' ? 'active' : ''}`}
               onClick={() => {
                 setEntryType('compras');
                 setFormData(prev => ({ ...prev, category: 'compras', title: prev.title || 'Compras en San Telmo' }));
               }}
             >
               <ShoppingBag size={16} />
-              <span>🛍️ Compras (Multi-ítem)</span>
+              <span>Compras (Multi-ítem)</span>
             </button>
 
             <button
               type="button"
-              className={`entry-type-tab-btn ${entryType === 'nota' ? 'active' : ''}`}
+              className={`entry-type-tab-btn tab-nota ${entryType === 'nota' ? 'active' : ''}`}
               onClick={() => {
                 setEntryType('nota');
                 setFormData(prev => ({ ...prev, category: 'relax', title: prev.title || 'Nota del día' }));
               }}
             >
               <StickyNote size={16} />
-              <span>📝 Nota / Aviso</span>
+              <span>Nota / Aviso</span>
             </button>
           </div>
         )}
@@ -273,16 +273,21 @@ export default function ActivityModal({
           {entryType === 'compras' && (
             <div className="compras-builder-box">
               <div className="compras-builder-header">
-                <div>
-                  <h4>🛍️ Artículos Comprados</h4>
-                  <p>Agrega cada producto con su precio para sumarlos en 1 sola card organizada.</p>
+                <div className="compras-header-info">
+                  <div className="compras-header-title">
+                    <ShoppingBag size={17} className="text-purple" />
+                    <span>Artículos del Lote de Compras</span>
+                  </div>
+                  <p className="compras-header-subtitle">
+                    Detalla los productos y sus precios. Se sumarán automáticamente en 1 sola tarjeta.
+                  </p>
                 </div>
                 <button
                   type="button"
                   className="btn-add-item-row"
                   onClick={handleAddItem}
                 >
-                  <Plus size={14} />
+                  <Plus size={15} />
                   <span>Agregar producto</span>
                 </button>
               </div>
@@ -290,23 +295,23 @@ export default function ActivityModal({
               <div className="items-inputs-stack">
                 {itemsList.map((item, index) => (
                   <div key={item.id} className="item-input-row">
-                    <span className="item-row-number">#{index + 1}</span>
+                    <span className="item-row-badge">#{index + 1}</span>
                     <input
                       type="text"
                       placeholder="Producto (ej: Pezuña, Imanes, Mate)"
                       value={item.name}
                       onChange={(e) => handleItemChange(item.id, 'name', e.target.value)}
-                      className="form-input item-name-input"
+                      className="form-input item-input-name"
                     />
                     <div className="item-price-wrapper">
-                      <span className="item-price-prefix">ARS $</span>
+                      <span className="item-price-symbol">ARS $</span>
                       <input
                         type="text"
                         inputMode="decimal"
-                        placeholder="35000"
+                        placeholder="0"
                         value={item.price}
                         onChange={(e) => handleItemChange(item.id, 'price', e.target.value)}
-                        className="form-input item-price-input"
+                        className="form-input item-input-price"
                       />
                     </div>
                     <button
@@ -323,18 +328,18 @@ export default function ActivityModal({
 
               {/* Live Sum Calculation Banner */}
               <div className="compras-total-summary-card">
-                <div className="total-label-col">
-                  <span>Total Acumulado ({itemsList.length} artículos):</span>
-                  <small>Se registrará este total espejo en tu Billetera</small>
+                <div className="summary-col-left">
+                  <span className="summary-items-count">Total ({itemsList.length} {itemsList.length === 1 ? 'artículo' : 'artículos'}):</span>
+                  <span className="summary-mirror-hint">Se reflejará este total espejo en tu Billetera</span>
                 </div>
-                <div className="total-amount-col">
-                  <div className="total-ars-tag">{formatCurrencyARS(totalItemsARS)}</div>
-                  <div className="total-usd-tag">≈ {formatCurrencyUSD(totalItemsARS, exchangeRate)} USD Blue</div>
+                <div className="summary-col-right">
+                  <span className="summary-total-ars">{formatCurrencyARS(totalItemsARS)}</span>
+                  <span className="summary-total-usd">≈ {formatCurrencyUSD(totalItemsARS, exchangeRate)} USD Blue</span>
                 </div>
               </div>
 
               {/* Category Selector for Compras (Compras vs Mercado vs Regalos) */}
-              <div className="form-row" style={{ marginTop: '12px' }}>
+              <div className="form-row compras-sub-row">
                 <div className="form-group">
                   <label>Categoría en Billetera</label>
                   <select
@@ -342,7 +347,7 @@ export default function ActivityModal({
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="form-select"
                   >
-                    <option value="compras">🛍️ Compras & Recuerdos</option>
+                    <option value="compras">🛍️ Compras & Outlets</option>
                     <option value="mercado">🛒 Mercado de Alimentos</option>
                     <option value="regalos">🎁 Regalos del Viaje</option>
                     <option value="varios">🏷️ Varios & General</option>
@@ -367,8 +372,12 @@ export default function ActivityModal({
               ======================================================= */}
           {entryType === 'nota' && (
             <div className="nota-builder-box">
+              <div className="nota-tip-hint">
+                <StickyNote size={16} />
+                <span>Las notas son recordatorios útiles para tu día ($0 de costo y sin ruta de transporte).</span>
+              </div>
               <div className="form-group">
-                <label>Detalle de la Nota / Aviso</label>
+                <label>Detalle de la Nota / Aviso *</label>
                 <textarea
                   rows={4}
                   placeholder="Escribe aquí recomendaciones, advertencias de seguridad, cosas pendientes por comprar o llevar..."
