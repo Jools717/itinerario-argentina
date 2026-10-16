@@ -901,10 +901,6 @@ export default function ItineraryView({
                               <ExternalLink size={12} className="external-arrow" />
                             </a>
                           )}
-                            <NavIcon size={15} />
-                            <span>¿Cómo llegar?</span>
-                            <ExternalLink size={12} className="external-arrow" />
-                          </a>
 
                           {/* VIEW ON APP MAP */}
                           {act.coords && (
