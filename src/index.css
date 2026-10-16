@@ -4473,6 +4473,141 @@ body {
   color: #059669;
 }
 
+/* Category Payment Filter Bar */
+.category-payment-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 0 0 14px 0;
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cat-filter-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.category-payment-filter-buttons {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.btn-cat-filter {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-cat-filter:hover {
+  color: #f1f5f9;
+}
+
+.btn-cat-filter.active-all {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
+}
+
+.btn-cat-filter.active-cash {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
+}
+
+.btn-cat-filter.active-card {
+  background: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(99, 102, 241, 0.3);
+}
+
+/* Tool Tab Responsive Labels */
+.tab-btn-text-mobile {
+  display: none;
+}
+
+/* Multi-Item Breakdown inside Expense Item */
+.expense-items-preview-block {
+  margin-top: 6px;
+  background: rgba(168, 85, 247, 0.06);
+  border: 1px dashed rgba(168, 85, 247, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.btn-toggle-items-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #8b5cf6;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-toggle-items-preview:hover {
+  color: #7c3aed;
+}
+
+.expense-items-expanded-table {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(168, 85, 247, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.expanded-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #334155;
+}
+
+.item-prod-name {
+  font-weight: 500;
+}
+
+.item-prod-price {
+  font-weight: 700;
+  color: #059669;
+}
+
+.expanded-item-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
 .footer-dual-totals span {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -7839,6 +7974,135 @@ body {
     align-items: center;
     gap: 8px;
   }
+
+  /* Dynamic Category Section & Grocery Items on Mobile */
+  .section-tools-tab-bar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+
+  .tool-tab-btn {
+    padding: 8px 6px;
+    font-size: 12px;
+    justify-content: center;
+    gap: 5px;
+    text-align: center;
+  }
+
+  .tab-btn-text-full {
+    display: none;
+  }
+
+  .tab-btn-text-mobile {
+    display: inline;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .category-payment-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .category-payment-filter-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    gap: 3px;
+  }
+
+  .btn-cat-filter {
+    padding: 7px 4px;
+    font-size: 0.72rem;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .grocery-expense-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "icon main"
+      "amount amount"
+      "actions actions";
+    gap: 8px 10px;
+    padding: 12px 14px;
+    align-items: center;
+  }
+
+  .grocery-expense-item .expense-cart-icon {
+    grid-area: icon;
+    align-self: start;
+    margin-top: 2px;
+  }
+
+  .grocery-expense-item .expense-main-info {
+    grid-area: main;
+    min-width: 0;
+  }
+
+  .grocery-expense-item .expense-amounts-box {
+    grid-area: amount;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px dashed var(--border-subtle);
+  }
+
+  .grocery-expense-item .grocery-item-actions {
+    grid-area: actions;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 4px;
+  }
+
+  .toolbar-tabs-scroll {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-right: 12px;
+  }
+
+  .toolbar-tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar-tab-wrapper {
+    flex-shrink: 0;
+  }
+
+  .toolbar-tab-btn {
+    flex-shrink: 0;
+  }
+
+  .toolbar-add-section-btn {
+    flex-shrink: 0;
+  }
+
+  .calc-screen .ars-value {
+    font-size: clamp(22px, 6vw, 30px);
+  }
+
+  .calc-keypad-grid {
+    gap: 6px;
+  }
+
+  .calc-btn {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .calc-btn-del {
+    font-size: 14px;
+  }
 }
 
 /* Base Styles for Liquidity Cards & Payment Filter Banner */
@@ -8052,7 +8316,64 @@ body {
 /* Extra small screens (Phones under 480px) */
 @media (max-width: 480px) {
   .budget-kpis-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .kpi-card {
+    padding: 10px;
+  }
+
+  .kpi-label {
+    font-size: 10.5px;
+  }
+
+  .kpi-ars-highlight {
+    font-size: 14.5px;
+  }
+
+  .kpi-usd-sub {
+    font-size: 11px;
+  }
+
+  .kpi-quick-nav-pill span {
+    font-size: 10.5px;
+  }
+
+  .section-kpis-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .dynamic-section-hero {
+    padding: 14px 12px;
+  }
+
+  .section-hero-top {
+    gap: 12px;
+  }
+
+  .section-avatar {
+    width: 42px;
+    height: 42px;
+  }
+
+  .section-titles h2 {
+    font-size: 18px;
+  }
+
+  .quick-presets-chips {
+    gap: 4px;
+  }
+
+  .quick-item-chip {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .approval-row-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 8px;
   }
 
   .header-brand {
@@ -8073,5 +8394,520 @@ body {
   }
 }
 
+/* ==========================================================================
+   MULTI-ITEM SHOPPING (COMPRAS) & NOTAS ENTRY FLOW STYLES
+   ========================================================================== */
 
+/* Top 3-Way Entry Type Selector */
+.entry-type-selector-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
 
+.entry-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.entry-tab-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.entry-tab-btn.active.tab-plan {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34d399;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.entry-tab-btn.active.tab-compras {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #c084fc;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+}
+
+.entry-tab-btn.active.tab-nota {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+/* Compras Multi-Item Builder Box */
+.compras-builder-box {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.compras-builder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.compras-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.compras-header-hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.compras-items-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.item-input-row {
+  display: grid;
+  grid-template-columns: 28px 1fr 150px 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.item-row-num {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-align: center;
+}
+
+.item-input-name {
+  width: 100%;
+}
+
+.item-price-field-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.item-price-field-wrap .price-prefix {
+  position: absolute;
+  left: 10px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.item-price-field-wrap .item-input-price,
+.item-price-field-wrap .item-price-field {
+  padding-left: 24px;
+  font-weight: 700;
+  text-align: right;
+  width: 100%;
+}
+
+.btn-remove-item {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-item:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+}
+
+.btn-remove-item:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-add-item-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px dashed rgba(168, 85, 247, 0.4);
+  background: rgba(168, 85, 247, 0.08);
+  color: #c084fc;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add-item-row:hover {
+  background: rgba(168, 85, 247, 0.18);
+  border-color: #a855f7;
+}
+
+/* Compras Total Summary Live Banner */
+.compras-total-summary-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(99, 102, 241, 0.12) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.summary-labels .summary-title {
+  display: block;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #c084fc;
+  font-weight: 700;
+}
+
+.summary-labels .summary-desc {
+  display: block;
+  font-size: 0.76rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.summary-values {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.summary-values .sum-ars {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.summary-values .sum-usd {
+  font-size: 0.8rem;
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+/* Nota Form Elements */
+.nota-tip-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: #fbbf24;
+  font-size: 0.82rem;
+  margin-bottom: 18px;
+}
+
+/* Kanban Card - Compras & Nota Pills */
+.kcard-compras-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #c084fc;
+}
+
+.kcard-nota-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #fbbf24;
+}
+
+.kcard-nota-text {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 3px solid #f59e0b;
+  margin: 6px 0 10px;
+}
+
+.kcard-cost-nota {
+  font-size: 0.78rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* Kanban Card - Compras Toggle & Dropdown */
+.kcard-items-block {
+  margin: 6px 0 8px;
+}
+
+.btn-kcard-toggle-items {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: rgba(168, 85, 247, 0.12);
+  color: #d8b4fe;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-kcard-toggle-items:hover {
+  background: rgba(168, 85, 247, 0.22);
+}
+
+.kcard-items-dropdown {
+  margin-top: 6px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kcard-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+}
+
+.kcard-item-row .it-price {
+  font-weight: 700;
+  color: #a78bfa;
+}
+
+.kcard-item-sum-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 4px;
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: #94a3b8;
+}
+
+.kcard-item-sum-row strong {
+  color: #34d399;
+}
+
+/* Timeline Cards - Nota & Compras Box */
+.timeline-nota-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 10px 0;
+  color: #e2e8f0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.cost-nota {
+  font-size: 0.85rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.timeline-compras-box {
+  background: rgba(168, 85, 247, 0.08);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 10px 0;
+}
+
+.compras-box-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #c084fc;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.compras-items-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.compras-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.compras-item-pill .it-name {
+  color: #cbd5e1;
+}
+
+.compras-item-pill .it-price {
+  color: #34d399;
+}
+
+/* Inspection Modal Compras Box */
+.inspect-compras-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.inspect-compras-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #c084fc;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.inspect-items-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inspect-item-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(30, 41, 59, 0.4);
+  border-radius: 6px;
+  font-size: 0.84rem;
+}
+
+.inspect-item-row .it-num {
+  width: 24px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.inspect-item-row .it-name {
+  flex: 1;
+  color: #e2e8f0;
+}
+
+.inspect-item-row .it-price {
+  color: #34d399;
+  font-weight: 700;
+}
+
+.inspect-nota-box {
+  margin: 12px 0 16px;
+}
+
+/* EditExpenseModal Multi-item styling */
+.edit-items-container {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(168, 85, 247, 0.25);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.edit-items-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #c084fc;
+  margin-bottom: 10px;
+}
+
+.edit-items-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.edit-item-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-add-item-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px dashed rgba(168, 85, 247, 0.35);
+  background: rgba(168, 85, 247, 0.08);
+  color: #c084fc;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.expense-items-pill-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid rgba(168, 85, 247, 0.25);
+}

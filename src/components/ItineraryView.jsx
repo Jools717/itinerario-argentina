@@ -3,7 +3,8 @@ import {
   Calendar, Clock, MapPin, Navigation as NavIcon, Users, CheckCircle, 
   Circle, Plus, Edit3, Trash2, Lightbulb, Sun, Sunset, Moon, ExternalLink,
   ChevronLeft, ChevronRight, AlertTriangle, Coffee, Filter, Kanban,
-  ArrowRightLeft, GripVertical, Eye, X, Check, Sparkles, Layers
+  ArrowRightLeft, GripVertical, Eye, X, Check, Sparkles, Layers,
+  ShoppingBag, StickyNote, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { INITIAL_DAYS } from '../data/initialData';
 import { getGoogleMapsTransitUrl, formatCurrencyARS, formatCurrencyUSD, getCategoryBadge } from '../utils/helpers';
@@ -28,6 +29,12 @@ export default function ItineraryView({
   const [filterFriend, setFilterFriend] = useState('all'); // 'all', 'withFriend', 'solo'
   const [filterPeriod, setFilterPeriod] = useState('all'); // 'all', 'mañana', 'tarde', 'noche'
   const [kanbanWeek, setKanbanWeek] = useState('all'); // 'all', 'week1' (1-7), 'week2' (8-14)
+
+  // Expanded items state for multi-item shopping cards
+  const [expandedPurchases, setExpandedPurchases] = useState({});
+  const toggleExpandPurchase = (id) => {
+    setExpandedPurchases(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Drag & Drop state
   const [draggedActivityId, setDraggedActivityId] = useState(null);
@@ -401,15 +408,23 @@ export default function ItineraryView({
                             onDragStart={(e) => handleDragStart(e, act)}
                             onDragEnd={handleDragEnd}
                           >
-                            {/* Card Top Row: Grip handle, Time, Category, Check */}
+                            {/* Card Top Row: Grip handle, Time / Type badge, Category, Check */}
                             <div className="kcard-header">
                               <div className="kcard-grip" title="Arrastra para mover a otro día">
                                 <GripVertical size={14} className="text-muted" />
                               </div>
 
                               <div className="kcard-time">
-                                {getPeriodIcon(act.period)}
-                                <span>{act.time} hs</span>
+                                {act.type === 'nota' ? (
+                                  <span className="kcard-nota-pill"><StickyNote size={11} /> Nota</span>
+                                ) : act.type === 'compras' ? (
+                                  <span className="kcard-compras-pill"><ShoppingBag size={11} /> Compras</span>
+                                ) : (
+                                  <>
+                                    {getPeriodIcon(act.period)}
+                                    <span>{act.time} hs</span>
+                                  </>
+                                )}
                               </div>
 
                               <span 
@@ -442,6 +457,47 @@ export default function ItineraryView({
                               {act.title}
                             </h4>
 
+                            {/* Nota Body Preview (if type === 'nota') */}
+                            {act.type === 'nota' && (act.note || act.description) && (
+                              <div className="kcard-nota-text">
+                                {act.note || act.description}
+                              </div>
+                            )}
+
+                            {/* Compras Multi-item toggle button & expandable list */}
+                            {(act.type === 'compras' || (act.items && act.items.length > 0)) && (
+                              <div className="kcard-items-block">
+                                <button
+                                  type="button"
+                                  className="btn-kcard-toggle-items"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleExpandPurchase(act.id);
+                                  }}
+                                  title="Ver u ocultar productos de este lote"
+                                >
+                                  <ShoppingBag size={12} className="text-purple" />
+                                  <span>{act.items?.length || 0} {act.items?.length === 1 ? 'artículo' : 'artículos'}</span>
+                                  {expandedPurchases[act.id] ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
+
+                                {expandedPurchases[act.id] && act.items && act.items.length > 0 && (
+                                  <div className="kcard-items-dropdown animate-fade-in" onClick={(e) => e.stopPropagation()}>
+                                    {act.items.map((it, idx) => (
+                                      <div key={it.id || idx} className="kcard-item-row">
+                                        <span className="it-name">• {it.name || 'Artículo'}</span>
+                                        <span className="it-price">{formatCurrencyARS(it.price || 0)}</span>
+                                      </div>
+                                    ))}
+                                    <div className="kcard-item-sum-row">
+                                      <span>Total lote:</span>
+                                      <strong>{formatCurrencyARS(act.costEstimatedARS)}</strong>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             {/* Card Barrio & Tags */}
                             <div className="kcard-meta-row">
                               <span className="kcard-barrio">
@@ -462,7 +518,9 @@ export default function ItineraryView({
 
                             {/* Cost Row */}
                             <div className="kcard-cost-row">
-                              {act.costEstimatedARS > 0 ? (
+                              {act.type === 'nota' ? (
+                                <span className="kcard-cost-nota">📌 Recordatorio / Nota</span>
+                              ) : act.costEstimatedARS > 0 ? (
                                 <span className="kcard-cost">
                                   {formatCurrencyARS(act.costEstimatedARS)}
                                   <small> (≈ {formatCurrencyUSD(act.costEstimatedARS, exchangeRate)} USD)</small>
@@ -715,8 +773,16 @@ export default function ItineraryView({
                       {/* Card Header: Time, Category, Barrio, Friend Toggle */}
                       <div className="act-header-row">
                         <div className="act-time-badge">
-                          {getPeriodIcon(act.period)}
-                          <span>{act.time} hs</span>
+                          {act.type === 'nota' ? (
+                            <span className="kcard-nota-pill"><StickyNote size={12} /> Nota</span>
+                          ) : act.type === 'compras' ? (
+                            <span className="kcard-compras-pill"><ShoppingBag size={12} /> Compras</span>
+                          ) : (
+                            <>
+                              {getPeriodIcon(act.period)}
+                              <span>{act.time} hs</span>
+                            </>
+                          )}
                         </div>
 
                         <span 
@@ -746,8 +812,34 @@ export default function ItineraryView({
                         {act.title}
                       </h3>
 
+                      {/* Nota Content (if type === 'nota') */}
+                      {act.type === 'nota' && (act.note || act.description) && (
+                        <div className="timeline-nota-box">
+                          <StickyNote size={16} className="text-amber" />
+                          <p>{act.note || act.description}</p>
+                        </div>
+                      )}
+
+                      {/* Compras Multi-item breakdown list */}
+                      {(act.type === 'compras' || (act.items && act.items.length > 0)) && (
+                        <div className="timeline-compras-box">
+                          <div className="compras-box-header">
+                            <ShoppingBag size={14} className="text-purple" />
+                            <span>Artículos incluidos ({act.items?.length || 0}):</span>
+                          </div>
+                          <div className="compras-items-grid">
+                            {act.items?.map((it, idx) => (
+                              <div key={it.id || idx} className="compras-item-pill">
+                                <span className="it-name">• {it.name || 'Artículo'}</span>
+                                <strong className="it-price">{formatCurrencyARS(it.price || 0)}</strong>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Description & Address */}
-                      {act.description && (
+                      {act.type !== 'nota' && act.description && (
                         <p className="act-description">{act.description}</p>
                       )}
 
@@ -768,10 +860,12 @@ export default function ItineraryView({
                         </div>
                       )}
 
-                      {/* Footer: Estimated Cost + Actions (Including 1-Click Move!) */}
+                      {/* Footer: Estimated Cost + Actions */}
                       <div className="act-footer">
                         <div className="act-cost">
-                          {act.costEstimatedARS > 0 ? (
+                          {act.type === 'nota' ? (
+                            <span className="cost-nota">📌 Recordatorio / Nota</span>
+                          ) : act.costEstimatedARS > 0 ? (
                             <div className="dual-currency-box">
                               <span className="cost-ars">{formatCurrencyARS(act.costEstimatedARS)}</span>
                               <span className="cost-usd-blue">≈ {formatCurrencyUSD(act.costEstimatedARS, exchangeRate)} USD Blue</span>
@@ -793,14 +887,20 @@ export default function ItineraryView({
                             <span>Mover día</span>
                           </button>
 
-                          {/* GOOGLE MAPS TRANSIT BUTTON */}
-                          <a
-                            href={mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn-google-maps"
-                            title="Abrir en Google Maps con ruta en transporte público (Subte/Colectivo)"
-                          >
+                          {/* GOOGLE MAPS TRANSIT BUTTON (for plans/places) */}
+                          {act.type !== 'nota' && (
+                            <a
+                              href={mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn-google-maps"
+                              title="Abrir en Google Maps con ruta en transporte público (Subte/Colectivo)"
+                            >
+                              <NavIcon size={15} />
+                              <span>¿Cómo llegar?</span>
+                              <ExternalLink size={12} className="external-arrow" />
+                            </a>
+                          )}
                             <NavIcon size={15} />
                             <span>¿Cómo llegar?</span>
                             <ExternalLink size={12} className="external-arrow" />
@@ -935,9 +1035,11 @@ export default function ItineraryView({
                   <Eye size={18} />
                 </span>
                 <div>
-                  <h3>Detalle del Plan</h3>
+                  <h3>
+                    {inspectingActivity.type === 'nota' ? 'Detalle de la Nota' : inspectingActivity.type === 'compras' ? 'Lote de Compras' : 'Detalle del Plan'}
+                  </h3>
                   <p className="quick-move-subtitle">
-                    Día {inspectingActivity.dayNumber} • {inspectingActivity.time} hs
+                    Día {inspectingActivity.dayNumber} {inspectingActivity.type !== 'nota' && `• ${inspectingActivity.time} hs`}
                   </p>
                 </div>
               </div>
@@ -960,7 +1062,7 @@ export default function ItineraryView({
                     color: getCategoryBadge(inspectingActivity.category).color 
                   }}
                 >
-                  {getCategoryBadge(inspectingActivity.category).label}
+                  {inspectingActivity.type === 'nota' ? 'Nota' : inspectingActivity.type === 'compras' ? '🛍️ Compras' : getCategoryBadge(inspectingActivity.category).label}
                 </span>
 
                 <span className="barrio-pill">
@@ -985,8 +1087,35 @@ export default function ItineraryView({
                 </div>
               )}
 
+              {/* Nota / Recordatorio Body */}
+              {inspectingActivity.type === 'nota' && (inspectingActivity.note || inspectingActivity.description) && (
+                <div className="timeline-nota-box inspect-nota-box">
+                  <StickyNote size={18} className="text-amber" />
+                  <p>{inspectingActivity.note || inspectingActivity.description}</p>
+                </div>
+              )}
+
+              {/* Multi-item Compras Table / List */}
+              {(inspectingActivity.type === 'compras' || (inspectingActivity.items && inspectingActivity.items.length > 0)) && (
+                <div className="inspect-compras-box">
+                  <div className="inspect-compras-header">
+                    <ShoppingBag size={16} className="text-purple" />
+                    <strong>Desglose de productos comprados ({inspectingActivity.items?.length || 0}):</strong>
+                  </div>
+                  <div className="inspect-items-table">
+                    {inspectingActivity.items?.map((it, idx) => (
+                      <div key={it.id || idx} className="inspect-item-row">
+                        <span className="it-num">{idx + 1}.</span>
+                        <span className="it-name">{it.name || 'Artículo'}</span>
+                        <strong className="it-price">{formatCurrencyARS(it.price || 0)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Description */}
-              {inspectingActivity.description && (
+              {inspectingActivity.type !== 'nota' && inspectingActivity.description && (
                 <p className="inspect-description">{inspectingActivity.description}</p>
               )}
 
@@ -1002,8 +1131,10 @@ export default function ItineraryView({
 
               {/* Estimated Cost */}
               <div className="inspect-cost-card">
-                <span>Costo estimado:</span>
-                {inspectingActivity.costEstimatedARS > 0 ? (
+                <span>{inspectingActivity.type === 'compras' ? 'Total acumulado del lote:' : 'Costo estimado:'}</span>
+                {inspectingActivity.type === 'nota' ? (
+                  <strong className="text-amber">📌 Nota / Recordatorio sin costo</strong>
+                ) : inspectingActivity.costEstimatedARS > 0 ? (
                   <div className="dual-currency-box">
                     <strong className="cost-ars">{formatCurrencyARS(inspectingActivity.costEstimatedARS)}</strong>
                     <span className="cost-usd-blue">≈ {formatCurrencyUSD(inspectingActivity.costEstimatedARS, exchangeRate)} USD Blue</span>
@@ -1013,17 +1144,19 @@ export default function ItineraryView({
                 )}
               </div>
 
-              {/* Primary Google Maps Route Button */}
-              <a
-                href={getGoogleMapsTransitUrl(inspectingActivity)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-inspect-maps"
-              >
-                <NavIcon size={16} />
-                <span>¿Cómo llegar en Subte / Colectivo (Google Maps)?</span>
-                <ExternalLink size={14} />
-              </a>
+              {/* Primary Google Maps Route Button (if not nota) */}
+              {inspectingActivity.type !== 'nota' && (
+                <a
+                  href={getGoogleMapsTransitUrl(inspectingActivity)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-inspect-maps"
+                >
+                  <NavIcon size={16} />
+                  <span>¿Cómo llegar en Subte / Colectivo (Google Maps)?</span>
+                  <ExternalLink size={14} />
+                </a>
+              )}
             </div>
 
             <div className="modal-footer inspect-modal-footer">

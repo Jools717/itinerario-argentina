@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRightLeft, Check, Sparkles, CreditCard, Banknote } from 'lucide-react';
+import { X, ArrowRightLeft, Check, Sparkles, CreditCard, Banknote, ShoppingBag, Plus, Trash2 } from 'lucide-react';
 import { formatCurrencyARS, parseCurrencyNumber, isActivityTrackedInExpenses } from '../utils/helpers';
 
 export default function EditExpenseModal({
@@ -17,6 +17,7 @@ export default function EditExpenseModal({
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [note, setNote] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
+  const [items, setItems] = useState([]);
 
   const safeRate = (Number(exchangeRate) && Number(exchangeRate) >= 100) ? Number(exchangeRate) : 1540;
 
@@ -43,6 +44,13 @@ export default function EditExpenseModal({
       setPaymentMethod(method);
       setNote(expense.note || '');
       setSelectedActivityId(matchedActivity?.id || expense.activityId || '');
+
+      const existingItems = expense.items || matchedActivity?.items;
+      if (Array.isArray(existingItems) && existingItems.length > 0) {
+        setItems(existingItems.map(it => ({ ...it })));
+      } else {
+        setItems([]);
+      }
     }
   }, [expense, isOpen, matchedActivity?.id]);
 
@@ -51,6 +59,28 @@ export default function EditExpenseModal({
   const parsedAmountARS = parseCurrencyNumber(amountInput);
   const liveUSD = parsedAmountARS / safeRate;
   const isLinkedToPlan = Boolean(matchedActivity || selectedActivityId || isItinerary);
+
+  const handleItemChange = (index, field, value) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], [field]: value };
+    setItems(updated);
+
+    if (field === 'price') {
+      const sum = updated.reduce((acc, curr) => acc + (parseCurrencyNumber(curr.price) || 0), 0);
+      setAmountInput(sum.toString());
+    }
+  };
+
+  const handleAddItem = () => {
+    setItems(prev => [...prev, { id: 'it-' + Date.now(), name: '', price: 0 }]);
+  };
+
+  const handleRemoveItem = (index) => {
+    const updated = items.filter((_, i) => i !== index);
+    setItems(updated);
+    const sum = updated.reduce((acc, curr) => acc + (parseCurrencyNumber(curr.price) || 0), 0);
+    setAmountInput(sum.toString());
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -69,10 +99,14 @@ export default function EditExpenseModal({
       paymentMethod: paymentMethod,
       paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
       note: note.trim(),
-      activityId: finalActId || null
+      activityId: finalActId || null,
+      type: items.length > 0 ? 'compras' : (expense.type || matchedActivity?.type || 'plan'),
+      items: items.length > 0 ? items : undefined
     };
 
     onSave(updated);
+    onClose();
+  };
     onClose();
   };
 
@@ -133,6 +167,56 @@ export default function EditExpenseModal({
               required
             />
           </div>
+
+          {/* Desglose de Artículos si es un lote de compras */}
+          {items.length > 0 && (
+            <div className="form-group edit-items-container">
+              <div className="edit-items-header">
+                <ShoppingBag size={15} className="text-purple" />
+                <label>Desglose de Artículos Comprados ({items.length}):</label>
+              </div>
+              <div className="edit-items-rows">
+                {items.map((it, idx) => (
+                  <div key={it.id || idx} className="edit-item-row">
+                    <input
+                      type="text"
+                      value={it.name}
+                      onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                      placeholder="Nombre del artículo"
+                      className="form-input item-name-field"
+                    />
+                    <div className="item-price-field-wrap">
+                      <span className="price-prefix">$</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={it.price}
+                        onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
+                        placeholder="0"
+                        className="form-input item-price-field"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-remove-item"
+                      onClick={() => handleRemoveItem(idx)}
+                      title="Quitar artículo"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="btn-add-item-modal"
+                onClick={handleAddItem}
+              >
+                <Plus size={13} />
+                <span>+ Agregar otro artículo</span>
+              </button>
+            </div>
+          )}
 
           {/* Monto en ARS */}
           <div className="form-group">

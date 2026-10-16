@@ -20,63 +20,126 @@ import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import { parseCurrencyNumber, isActivityTrackedInExpenses } from './utils/helpers';
 
 // Helper mappers between App state and Normalized Database rows
-const activityToDb = (act) => ({
-  id: act.id,
-  day_number: act.dayNumber,
-  time: act.time,
-  period: act.period,
-  title: act.title,
-  barrio: act.barrio,
-  category: act.category,
-  address: act.address || '',
-  lat: act.coords && act.coords.length === 2 ? act.coords[0] : null,
-  lng: act.coords && act.coords.length === 2 ? act.coords[1] : null,
-  description: act.description || '',
-  tip: act.tip || '',
-  with_friend: Boolean(act.withFriend),
-  completed: Boolean(act.completed),
-  cost_estimated_ars: Number(act.costEstimatedARS) || 0
-});
+const activityToDb = (act) => {
+  let dbDescription = act.description || '';
+  if (act.type === 'compras' || act.type === 'nota' || (Array.isArray(act.items) && act.items.length > 0)) {
+    dbDescription = JSON.stringify({
+      type: act.type || (Array.isArray(act.items) && act.items.length > 0 ? 'compras' : 'plan'),
+      items: act.items || [],
+      note: act.note || act.description || ''
+    });
+  }
+  return {
+    id: act.id,
+    day_number: act.dayNumber,
+    time: act.time || '10:00',
+    period: act.period || 'mañana',
+    title: act.title,
+    barrio: act.barrio || '',
+    category: act.category || (act.type === 'compras' ? 'compras' : 'cultura'),
+    address: act.address || '',
+    lat: act.coords && act.coords.length === 2 ? act.coords[0] : null,
+    lng: act.coords && act.coords.length === 2 ? act.coords[1] : null,
+    description: dbDescription,
+    tip: act.tip || '',
+    with_friend: Boolean(act.withFriend),
+    completed: Boolean(act.completed),
+    cost_estimated_ars: Number(act.costEstimatedARS) || 0
+  };
+};
 
-const dbToActivity = (row) => ({
-  id: row.id,
-  dayNumber: Number(row.day_number),
-  time: row.time || '10:00',
-  period: row.period || 'mañana',
-  title: row.title,
-  barrio: row.barrio || '',
-  category: row.category || 'cultura',
-  address: row.address || '',
-  coords: (row.lat != null && row.lng != null) ? [row.lat, row.lng] : null,
-  description: row.description || '',
-  tip: row.tip || '',
-  withFriend: Boolean(row.with_friend),
-  completed: Boolean(row.completed),
-  costEstimatedARS: Number(row.cost_estimated_ars) || 0
-});
+const dbToActivity = (row) => {
+  let parsedType = 'plan';
+  let parsedItems = [];
+  let parsedDesc = row.description || '';
+  let parsedNote = '';
 
-const expenseToDb = (exp) => ({
-  id: exp.id,
-  date: exp.date,
-  concept: exp.concept,
-  category: exp.category,
-  amount_ars: Number(exp.amountARS) || 0,
-  paid_by: exp.paymentMethod || exp.paidBy || 'efectivo',
-  note: exp.note || '',
-  receipt_id: exp.receipt_id || null
-});
+  if (row.description && typeof row.description === 'string' && row.description.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(row.description);
+      if (parsed && typeof parsed === 'object') {
+        parsedType = parsed.type || (Array.isArray(parsed.items) && parsed.items.length > 0 ? 'compras' : 'plan');
+        parsedItems = Array.isArray(parsed.items) ? parsed.items : [];
+        parsedDesc = parsed.note || parsed.description || '';
+        parsedNote = parsed.note || '';
+      }
+    } catch {}
+  } else if (row.category === 'compras') {
+    parsedType = 'plan';
+  }
 
-const dbToExpense = (row) => ({
-  id: row.id,
-  date: row.date,
-  concept: row.concept,
-  category: row.category,
-  amountARS: Number(row.amount_ars) || 0,
-  paymentMethod: (row.paid_by?.toLowerCase() === 'tarjeta' || row.note?.toLowerCase().includes('tarjeta')) ? 'tarjeta' : 'efectivo',
-  paidBy: row.paid_by || 'Efectivo',
-  note: row.note || '',
-  receipt_id: row.receipt_id || null
-});
+  return {
+    id: row.id,
+    dayNumber: Number(row.day_number),
+    time: row.time || '10:00',
+    period: row.period || 'mañana',
+    title: row.title,
+    barrio: row.barrio || '',
+    category: row.category || 'cultura',
+    address: row.address || '',
+    coords: (row.lat != null && row.lng != null) ? [row.lat, row.lng] : null,
+    description: parsedDesc,
+    note: parsedNote,
+    type: parsedType,
+    items: parsedItems,
+    tip: row.tip || '',
+    withFriend: Boolean(row.with_friend),
+    completed: Boolean(row.completed),
+    costEstimatedARS: Number(row.cost_estimated_ars) || 0
+  };
+};
+
+const expenseToDb = (exp) => {
+  let dbNote = exp.note || '';
+  if (exp.type === 'compras' || (Array.isArray(exp.items) && exp.items.length > 0)) {
+    dbNote = JSON.stringify({
+      type: exp.type || 'compras',
+      items: exp.items || [],
+      note: exp.note || ''
+    });
+  }
+  return {
+    id: exp.id,
+    date: exp.date,
+    concept: exp.concept,
+    category: exp.category,
+    amount_ars: Number(exp.amountARS) || 0,
+    paid_by: exp.paymentMethod || exp.paidBy || 'efectivo',
+    note: dbNote,
+    receipt_id: exp.receipt_id || null
+  };
+};
+
+const dbToExpense = (row) => {
+  let parsedType = 'plan';
+  let parsedItems = [];
+  let parsedNote = row.note || '';
+
+  if (row.note && typeof row.note === 'string' && row.note.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(row.note);
+      if (parsed && typeof parsed === 'object') {
+        parsedType = parsed.type || (Array.isArray(parsed.items) && parsed.items.length > 0 ? 'compras' : 'plan');
+        parsedItems = Array.isArray(parsed.items) ? parsed.items : [];
+        parsedNote = parsed.note || '';
+      }
+    } catch {}
+  }
+
+  return {
+    id: row.id,
+    date: row.date,
+    concept: row.concept,
+    category: row.category,
+    amountARS: Number(row.amount_ars) || 0,
+    paymentMethod: (row.paid_by?.toLowerCase() === 'tarjeta' || row.note?.toLowerCase().includes('tarjeta')) ? 'tarjeta' : 'efectivo',
+    paidBy: row.paid_by || 'Efectivo',
+    note: parsedNote,
+    type: parsedType,
+    items: parsedItems,
+    receipt_id: row.receipt_id || null
+  };
+};
 
 const categoryToDb = (cat) => ({
   id: cat.id,
@@ -119,14 +182,14 @@ const dbToChecklist = (row) => ({
 });
 
 export default function App() {
-  // Purge legacy local cache to match clean database wipe
+  // Purge legacy local cache to match clean database wipe & consolidation
   try {
-    if (localStorage.getItem('ba_trip_wipe_clean_v1') !== 'true') {
+    if (localStorage.getItem('ba_trip_wipe_clean_v4') !== 'true') {
       localStorage.removeItem('ba_itinerary_activities');
       localStorage.removeItem('ba_itinerary_expenses');
       localStorage.removeItem('ba_itinerary_checklist');
       localStorage.removeItem('ba_itinerary_receipts');
-      localStorage.setItem('ba_trip_wipe_clean_v1', 'true');
+      localStorage.setItem('ba_trip_wipe_clean_v4', 'true');
     }
   } catch {}
 
@@ -475,14 +538,24 @@ export default function App() {
   };
 
   const handleSaveActivity = async (formData) => {
-    const cleanCost = Math.max(0, parseCurrencyNumber(formData.costEstimatedARS) || 0);
+    // If it's a compras card with items, calculate the sum of items
+    let cleanCost = 0;
+    if (formData.type === 'compras' && Array.isArray(formData.items) && formData.items.length > 0) {
+      cleanCost = formData.items.reduce((sum, item) => sum + (parseCurrencyNumber(item.price) || 0), 0);
+    } else if (formData.type === 'nota') {
+      cleanCost = 0;
+    } else {
+      cleanCost = Math.max(0, parseCurrencyNumber(formData.costEstimatedARS) || 0);
+    }
 
     if (editingActivity) {
       const updated = { 
         ...formData, 
         id: editingActivity.id,
         dayNumber: Number(formData.dayNumber || editingActivity.dayNumber || 1),
-        costEstimatedARS: cleanCost
+        costEstimatedARS: cleanCost,
+        type: formData.type || editingActivity.type || 'plan',
+        items: formData.items || editingActivity.items || []
       };
       const nextActs = activities.map(a => a.id === editingActivity.id ? updated : a);
       setActivities(nextActs);
@@ -513,7 +586,10 @@ export default function App() {
               ...e,
               activityId: updated.id,
               amountARS: cleanCost,
-              concept: updated.title
+              concept: updated.title,
+              category: updated.category,
+              type: updated.type,
+              items: updated.items
             };
           }
           return e;
@@ -526,7 +602,10 @@ export default function App() {
               ...m,
               activityId: updated.id,
               amountARS: cleanCost,
-              concept: updated.title
+              concept: updated.title,
+              category: updated.category,
+              type: updated.type,
+              items: updated.items
             })).catch(console.error);
           }
         }
@@ -536,7 +615,9 @@ export default function App() {
         ...formData,
         id: 'act-' + Date.now(),
         dayNumber: Number(formData.dayNumber || modalDayNumber || selectedDayNumber || 1),
-        costEstimatedARS: cleanCost
+        costEstimatedARS: cleanCost,
+        type: formData.type || 'plan',
+        items: formData.items || []
       };
       const nextActs = [...activities, newActivity];
       setActivities(nextActs);
@@ -700,7 +781,12 @@ export default function App() {
   };
 
   const handleUpdateExpense = async (updatedExpense) => {
-    const cost = Math.max(0, parseCurrencyNumber(updatedExpense.amountARS) || 0);
+    let cost = 0;
+    if (updatedExpense.items && updatedExpense.items.length > 0) {
+      cost = updatedExpense.items.reduce((sum, item) => sum + (parseCurrencyNumber(item.price) || 0), 0);
+    } else {
+      cost = Math.max(0, parseCurrencyNumber(updatedExpense.amountARS) || 0);
+    }
     const title = updatedExpense.concept?.trim();
     const isItineraryMirror = Boolean(
       updatedExpense.isFromItinerary || 
@@ -719,7 +805,10 @@ export default function App() {
           return {
             ...a,
             costEstimatedARS: cost,
-            ...(title ? { title } : {})
+            ...(title ? { title } : {}),
+            ...(updatedExpense.category ? { category: updatedExpense.category } : {}),
+            ...(updatedExpense.items ? { items: updatedExpense.items } : {}),
+            ...(updatedExpense.type ? { type: updatedExpense.type } : {})
           };
         }
         return a;
@@ -741,7 +830,9 @@ export default function App() {
         ...updatedExpense,
         amountARS: cost,
         concept: title || 'Gasto',
-        activityId: actId || updatedExpense.activityId || null
+        activityId: actId || updatedExpense.activityId || null,
+        items: updatedExpense.items || [],
+        type: updatedExpense.type || 'plan'
       };
       const nextExpenses = expenses.map(e => e.id === finalized.id ? finalized : e);
       setExpenses(nextExpenses);
@@ -763,7 +854,10 @@ export default function App() {
         const finalized = {
           ...matchingExp,
           amountARS: cost,
-          concept: title || matchingExp.concept
+          concept: title || matchingExp.concept,
+          category: updatedExpense.category || matchingExp.category,
+          items: updatedExpense.items || matchingExp.items || [],
+          type: updatedExpense.type || matchingExp.type || 'plan'
         };
         const nextExpenses = expenses.map(e => e.id === matchingExp.id ? finalized : e);
         setExpenses(nextExpenses);

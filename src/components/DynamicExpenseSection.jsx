@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Calculator, Camera, Receipt, Plus, Trash2, Wallet, 
-  CheckCircle2, Sparkles, Check, Delete, Equal, Tag, Eye, Edit3
+  CheckCircle2, Sparkles, Check, Delete, Equal, Tag, Eye, Edit3,
+  ShoppingCart, Gift, Utensils, Bus, Ticket, ShoppingBag, ChevronDown, ChevronUp
 } from 'lucide-react';
 import ReceiptScanner from './ReceiptScanner';
 import { formatCurrencyARS, formatCurrencyUSD, parseCurrencyNumber, cleanCalcExpression, getExpensePaymentMethod } from '../utils/helpers';
 
-// Presets by category
+// Presets by category tailored for Buenos Aires trip
 const CATEGORY_PRESETS = {
   mercado: [
     { name: 'Medialunas / Facturas (docena)', defaultPrice: 4800, icon: '🥐' },
@@ -19,6 +20,17 @@ const CATEGORY_PRESETS = {
     { name: 'Agua mineral y gaseosas', defaultPrice: 3200, icon: '💧' },
     { name: 'Vino Malbec / Cervezas', defaultPrice: 5800, icon: '🍷' },
   ],
+  compras: [
+    { name: 'Camiseta de fútbol / AFA', defaultPrice: 25000, icon: '👕' },
+    { name: 'Botella térmica / Botilito', defaultPrice: 20000, icon: '🍶' },
+    { name: 'Mate de alpaca y bombilla', defaultPrice: 18000, icon: '🧉' },
+    { name: 'Pack medias de diseño (x3)', defaultPrice: 15000, icon: '🧦' },
+    { name: 'Billetera / cinturón de cuero', defaultPrice: 16000, icon: '👛' },
+    { name: 'Libros El Ateneo Splendid', defaultPrice: 14500, icon: '📚' },
+    { name: 'Imanes y postales San Telmo', defaultPrice: 12000, icon: '🧲' },
+    { name: 'Zapatillas / Calzado outlet', defaultPrice: 45000, icon: '👟' },
+    { name: 'Mochila / Bolso de cuero', defaultPrice: 32000, icon: '🎒' }
+  ],
   regalos: [
     { name: 'Caja Alfajores Havanna (x12)', defaultPrice: 16500, icon: '🍫' },
     { name: 'Mate de calabaza & Bombilla', defaultPrice: 18000, icon: '🧉' },
@@ -27,7 +39,75 @@ const CATEGORY_PRESETS = {
     { name: 'Remera Argentina / AFA', defaultPrice: 22000, icon: '👕' },
     { name: 'Llaveros y recuerdos de San Telmo', defaultPrice: 5000, icon: '🎁' },
     { name: 'Chocolates Rapanui / Fra-nui', defaultPrice: 8500, icon: '🍓' },
+    { name: 'Caja Alfajores Cachafaz (x6)', defaultPrice: 9800, icon: '🍪' }
+  ],
+  gastronomia: [
+    { name: 'Café + 2 Medialunas', defaultPrice: 4500, icon: '☕' },
+    { name: 'Menú Ejecutivo mediodía', defaultPrice: 12500, icon: '🍽️' },
+    { name: 'Asado / Parrilla porteña', defaultPrice: 28000, icon: '🥩' },
+    { name: 'Pizza grande + Fainá Güerrín', defaultPrice: 16000, icon: '🍕' },
+    { name: 'Docena Empanadas criollas', defaultPrice: 18000, icon: '🥟' },
+    { name: '1/4 kg Helado Rapanui / Lucciano\'s', defaultPrice: 6200, icon: '🍨' },
+    { name: 'Trago de autor / Vermut bar', defaultPrice: 9500, icon: '🍸' },
+    { name: 'Picada completa para compartir', defaultPrice: 22000, icon: '🧀' }
+  ],
+  transporte: [
+    { name: 'Carga SUBE semanal', defaultPrice: 15000, icon: '💳' },
+    { name: 'Viaje individual Subte', defaultPrice: 750, icon: '🚇' },
+    { name: 'Cabify / Uber trayecto medio', defaultPrice: 7500, icon: '🚕' },
+    { name: 'Taxi nocturno San Telmo/Palermo', defaultPrice: 9000, icon: '🚖' },
+    { name: 'Traslado Ezeiza (Tienda León/Taxi)', defaultPrice: 34000, icon: '✈️' },
+    { name: 'Traslado Aeroparque Jorge Newbery', defaultPrice: 12000, icon: '🛬' }
+  ],
+  cultura: [
+    { name: 'Visita guiada Teatro Colón', defaultPrice: 34000, icon: '🎭' },
+    { name: 'Entrada Museo MALBA', defaultPrice: 8500, icon: '🏛️' },
+    { name: 'Entrada Museo Boca / River', defaultPrice: 47000, icon: '⚽' },
+    { name: 'Show de Tango + Cena/Copa', defaultPrice: 45000, icon: '💃' },
+    { name: 'Entrada Jardín Japonés', defaultPrice: 4500, icon: '🌸' },
+    { name: 'Espectáculo Calle Corrientes', defaultPrice: 25000, icon: '🎟️' }
+  ],
+  varios: [
+    { name: 'Farmacia / Protector solar', defaultPrice: 9500, icon: '💊' },
+    { name: 'Chip SIM / Prepago celulares', defaultPrice: 12000, icon: '📱' },
+    { name: 'Propinas y efectivo del día', defaultPrice: 3000, icon: '💵' },
+    { name: 'Servicio Lavandería x kilo', defaultPrice: 11000, icon: '🧺' },
+    { name: 'Artículos aseo e higiene', defaultPrice: 6500, icon: '🧼' }
   ]
+};
+
+// Fallback presets for custom categories
+const GENERIC_PRESETS = [
+  { name: 'Gasto menor / Kiosco', defaultPrice: 3500, icon: '🍬' },
+  { name: 'Café / Bebida al paso', defaultPrice: 4500, icon: '☕' },
+  { name: 'Almuerzo / Comida rápida', defaultPrice: 12000, icon: '🥪' },
+  { name: 'Salida / Paseo recreativo', defaultPrice: 18000, icon: '🎟️' },
+  { name: 'Compra en comercio', defaultPrice: 25000, icon: '🛍️' },
+  { name: 'Traslado urbano / Taxi', defaultPrice: 8500, icon: '🚕' }
+];
+
+const ICON_MAP = {
+  ShoppingCart,
+  Gift,
+  Utensils,
+  Bus,
+  Ticket,
+  ShoppingBag,
+  Receipt,
+  Tag,
+  Wallet,
+  mercado: ShoppingCart,
+  regalos: Gift,
+  gastronomia: Utensils,
+  transporte: Bus,
+  cultura: Ticket,
+  compras: ShoppingBag,
+  varios: Receipt
+};
+
+export const renderCategoryIcon = (iconNameOrId, size = 18, style = {}) => {
+  const IconComp = ICON_MAP[iconNameOrId] || Tag;
+  return <IconComp size={size} style={style} />;
 };
 
 // Safe arithmetic evaluator with thousands separator support (e.g. 19.741 -> 19741)
@@ -76,6 +156,7 @@ export default function DynamicExpenseSection({
   const [note, setNote] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [expandedExpenses, setExpandedExpenses] = useState({});
 
   // Manual Form State
   const [manualConcept, setManualConcept] = useState('');
@@ -111,8 +192,8 @@ export default function DynamicExpenseSection({
   const computedARS = safeEvaluateExpression(calcExpression);
   const computedUSD = computedARS / safeRate;
 
-  // Quick presets for this category (or empty)
-  const presets = CATEGORY_PRESETS[category.id] || [];
+  // Quick presets for this category (with fallback for custom categories)
+  const presets = CATEGORY_PRESETS[category.id] || GENERIC_PRESETS;
 
   // Keypad
   const handleKeyClick = (val) => {
@@ -159,6 +240,25 @@ export default function DynamicExpenseSection({
     ]);
   };
 
+  const handleRemoveTapeItem = (itemToRemove) => {
+    const updated = cartTape.filter(i => i.id !== itemToRemove.id);
+    setCartTape(updated);
+    if (updated.length > 0) {
+      setCalcExpression(updated.map(i => i.price).join(' + '));
+    } else {
+      setCalcExpression('');
+    }
+  };
+
+  const handleClearTape = () => {
+    setCartTape([]);
+    setCalcExpression('');
+  };
+
+  const toggleExpandExpense = (id) => {
+    setExpandedExpenses(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
   // Approve Calculator Total
   const handleApproveCalculator = (e) => {
     if (e) e.preventDefault();
@@ -172,6 +272,12 @@ export default function DynamicExpenseSection({
     const fullConcept = storeConcept.trim() || `${category.name}`;
     const fullNote = note ? `${note}${itemsSummary}` : (itemsSummary ? `Items:${itemsSummary}` : 'Registro con calculadora');
 
+    const structuredItems = cartTape.map(i => ({
+      name: i.name,
+      price: i.price,
+      currency: 'ARS'
+    }));
+
     const newExpense = {
       id: 'exp-' + Date.now(),
       date: purchaseDate,
@@ -180,7 +286,9 @@ export default function DynamicExpenseSection({
       amountARS: finalAmount,
       paymentMethod: paymentMethod,
       paidBy: paymentMethod === 'tarjeta' ? 'Tarjeta' : 'Efectivo',
-      note: fullNote
+      note: fullNote,
+      type: cartTape.length > 0 ? 'compras' : 'plan',
+      items: structuredItems
     };
 
     onAddExpense(newExpense);
@@ -243,7 +351,7 @@ export default function DynamicExpenseSection({
       <div className="dynamic-section-hero" style={{ borderColor: `${category.color}40` }}>
         <div className="section-hero-top">
           <div className="section-avatar" style={{ backgroundColor: `${category.color}20`, color: category.color }}>
-            <Tag size={26} />
+            {renderCategoryIcon(category.icon || category.id, 26)}
           </div>
 
           <div className="section-titles">
@@ -310,7 +418,8 @@ export default function DynamicExpenseSection({
           onClick={() => setActiveTool('calculator')}
         >
           <Calculator size={17} />
-          <span>Calculadora de Gastos</span>
+          <span className="tab-btn-text-full">Calculadora de Gastos</span>
+          <span className="tab-btn-text-mobile">Calculadora</span>
         </button>
 
         <button
@@ -319,7 +428,8 @@ export default function DynamicExpenseSection({
           onClick={() => setActiveTool('scanner')}
         >
           <Camera size={17} />
-          <span>Escáner de Facturas (Foto & OCR)</span>
+          <span className="tab-btn-text-full">Escáner de Facturas (Foto & OCR)</span>
+          <span className="tab-btn-text-mobile">Escáner</span>
         </button>
 
         <button
@@ -328,7 +438,8 @@ export default function DynamicExpenseSection({
           onClick={() => setActiveTool('manual')}
         >
           <Receipt size={17} />
-          <span>Ingreso Directo de Ticket</span>
+          <span className="tab-btn-text-full">Ingreso Directo de Ticket</span>
+          <span className="tab-btn-text-mobile">Directo</span>
         </button>
       </div>
 
@@ -447,7 +558,7 @@ export default function DynamicExpenseSection({
                 <div className="cart-tape-box">
                   <div className="tape-header">
                     <span>🛒 Items añadidos ({cartTape.length}):</span>
-                    <button type="button" onClick={() => setCartTape([])} className="btn-clear-tape">Limpiar</button>
+                    <button type="button" onClick={handleClearTape} className="btn-clear-tape">Limpiar</button>
                   </div>
                   <div className="tape-items-list">
                     {cartTape.map(it => (
@@ -456,8 +567,9 @@ export default function DynamicExpenseSection({
                         <strong>{formatCurrencyARS(it.price)}</strong>
                         <button 
                           type="button" 
-                          onClick={() => setCartTape(prev => prev.filter(i => i.id !== it.id))} 
+                          onClick={() => handleRemoveTapeItem(it)} 
                           className="btn-remove-tape"
+                          title="Quitar item y recalcular total"
                         >×</button>
                       </div>
                     ))}
@@ -723,67 +835,29 @@ export default function DynamicExpenseSection({
             </div>
 
             {/* Switch de Pago: General / Solo Efectivo / Solo Tarjeta */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '10px',
-              padding: '10px 14px',
-              margin: '0 0 14px 0',
-              background: 'rgba(15, 23, 42, 0.6)',
-              borderRadius: '10px',
-              border: '1px solid rgba(255, 255, 255, 0.08)'
-            }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#94a3b8' }}>
+            <div className="category-payment-filter-bar">
+              <span className="cat-filter-label">
                 Filtrar por:
               </span>
-              <div style={{ display: 'inline-flex', gap: '4px', background: 'rgba(0,0,0,0.2)', padding: '3px', borderRadius: '8px' }}>
+              <div className="category-payment-filter-buttons">
                 <button
                   type="button"
                   onClick={() => setPaymentFilter('all')}
-                  style={{
-                    padding: '5px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: paymentFilter === 'all' ? '#3b82f6' : 'transparent',
-                    color: paymentFilter === 'all' ? '#ffffff' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    cursor: 'pointer'
-                  }}
+                  className={`btn-cat-filter ${paymentFilter === 'all' ? 'active-all' : ''}`}
                 >
                   🌐 General ({allCategoryExpenses.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentFilter('efectivo')}
-                  style={{
-                    padding: '5px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: paymentFilter === 'efectivo' ? '#10b981' : 'transparent',
-                    color: paymentFilter === 'efectivo' ? '#ffffff' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    cursor: 'pointer'
-                  }}
+                  className={`btn-cat-filter ${paymentFilter === 'efectivo' ? 'active-cash' : ''}`}
                 >
                   💵 Efectivo ({formatCurrencyARS(totalCatCashARS)})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentFilter('tarjeta')}
-                  style={{
-                    padding: '5px 10px',
-                    borderRadius: '6px',
-                    border: 'none',
-                    background: paymentFilter === 'tarjeta' ? '#6366f1' : 'transparent',
-                    color: paymentFilter === 'tarjeta' ? '#ffffff' : '#94a3b8',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    cursor: 'pointer'
-                  }}
+                  className={`btn-cat-filter ${paymentFilter === 'tarjeta' ? 'active-card' : ''}`}
                 >
                   💳 Tarjeta ({formatCurrencyARS(totalCatCardARS)})
                 </button>
@@ -809,7 +883,7 @@ export default function DynamicExpenseSection({
                   return (
                     <div key={exp.id} className="grocery-expense-item">
                       <div className="expense-cart-icon" style={{ backgroundColor: `${category.color}20`, color: category.color }}>
-                        <Tag size={16} />
+                        {renderCategoryIcon(category.icon || category.id, 16)}
                       </div>
 
                       <div className="expense-main-info">
@@ -850,6 +924,37 @@ export default function DynamicExpenseSection({
                           <span className="meta-date">{exp.date}</span>
                           {exp.note && <span className="meta-note">• {exp.note}</span>}
                         </div>
+
+                        {/* Collapsible Multi-Item Breakdown */}
+                        {exp.items && exp.items.length > 0 && (
+                          <div className="expense-items-preview-block">
+                            <button
+                              type="button"
+                              className="btn-toggle-items-preview"
+                              onClick={() => toggleExpandExpense(exp.id)}
+                              title="Ver desglose de productos"
+                            >
+                              <span>🛍️ {exp.items.length} productos incluidos</span>
+                              <span className="toggle-chevron">
+                                {expandedExpenses[exp.id] ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              </span>
+                            </button>
+                            {expandedExpenses[exp.id] && (
+                              <div className="expense-items-expanded-table">
+                                {exp.items.map((prod, pIdx) => (
+                                  <div key={pIdx} className="expanded-item-row">
+                                    <span className="item-prod-name">• {prod.name}</span>
+                                    <span className="item-prod-price">{formatCurrencyARS(prod.price)}</span>
+                                  </div>
+                                ))}
+                                <div className="expanded-item-total-row">
+                                  <span>Total compra:</span>
+                                  <strong>{formatCurrencyARS(exp.amountARS)}</strong>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="expense-amounts-box">

@@ -19,6 +19,30 @@ import ReceiptViewerModal from './ReceiptViewerModal';
 import EditExpenseModal from './EditExpenseModal';
 import { CASH_EXCHANGE_INFO } from '../data/initialData';
 
+const ICON_COMPONENT_MAP = {
+  ShoppingCart,
+  Gift,
+  Utensils,
+  Bus,
+  Ticket,
+  ShoppingBag,
+  Receipt,
+  Tag,
+  Wallet,
+  mercado: ShoppingCart,
+  regalos: Gift,
+  gastronomia: Utensils,
+  transporte: Bus,
+  cultura: Ticket,
+  compras: ShoppingBag,
+  varios: Receipt
+};
+
+const getCategoryIcon = (iconNameOrId, size = 15, style = {}) => {
+  const IconComp = ICON_COMPONENT_MAP[iconNameOrId] || Tag;
+  return <IconComp size={size} style={style} />;
+};
+
 export default function BudgetTracker({
   expenses = [],
   activities = [],
@@ -132,13 +156,15 @@ export default function BudgetTracker({
         activityId: a.id,
         date: `Día ${a.dayNumber} · ${a.time || '10:00'}`,
         concept: a.title,
-        category: a.category || 'gastronomia',
+        category: a.category || (a.type === 'compras' ? 'compras' : 'gastronomia'),
         amountARS: parsedCost,
         paidBy: 'Itinerario',
         note: `Plan Día ${a.dayNumber}${a.barrio ? ` (${a.barrio})` : ''}`,
         isFromItinerary: true,
         dayNumber: a.dayNumber,
-        completed: Boolean(a.completed)
+        completed: Boolean(a.completed),
+        type: a.type || 'plan',
+        items: a.items || []
       };
     });
 
@@ -161,7 +187,11 @@ export default function BudgetTracker({
     .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
 
   const regalosTotalARS = mergedExpenses
-    .filter(e => e.category === 'regalos' || e.category === 'compras')
+    .filter(e => e.category === 'regalos')
+    .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
+
+  const comprasTotalARS = mergedExpenses
+    .filter(e => e.category === 'compras')
     .reduce((sum, e) => sum + (Number(e.amountARS) || 0), 0);
 
   const gastronomiaTotalARS = mergedExpenses
@@ -298,7 +328,7 @@ export default function BudgetTracker({
                   onClick={() => setActiveSubTab(cat.id)}
                   style={isActive ? { borderBottomColor: cat.color, color: cat.color } : {}}
                 >
-                  <Tag size={15} style={{ color: cat.color }} />
+                  {getCategoryIcon(cat.icon || cat.id, 15, { color: cat.color })}
                   <span>{cat.name}</span>
                   <span className="toolbar-tab-count">{catARS > 0 ? formatCurrencyARS(catARS) : '$0 ARS'}</span>
                 </button>
@@ -568,6 +598,26 @@ export default function BudgetTracker({
             </div>
 
             <div 
+              className="kpi-card compras-card interactive-link"
+              onClick={() => setActiveSubTab('compras')}
+              role="button"
+              tabIndex={0}
+              title="Abrir sección de Compras & Outlets"
+            >
+              <div className="kpi-header">
+                <span className="kpi-label">Compras & Outlets</span>
+                <ShoppingBag size={18} className="kpi-icon text-purple" />
+              </div>
+              <div className="kpi-dual-values">
+                <div className="kpi-ars-highlight">{formatCurrencyARS(comprasTotalARS)}</div>
+                <div className="kpi-usd-sub">≈ ${(comprasTotalARS / safeRate).toFixed(1)} USD Blue</div>
+              </div>
+              <div className="kpi-quick-nav-pill">
+                <span>🛍️ Ver Compras →</span>
+              </div>
+            </div>
+
+            <div 
               className="kpi-card mercado-card interactive-link"
               onClick={() => setActiveSubTab('mercado')}
               role="button"
@@ -584,6 +634,26 @@ export default function BudgetTracker({
               </div>
               <div className="kpi-quick-nav-pill">
                 <span>🛒 Calculadora & Escáner →</span>
+              </div>
+            </div>
+
+            <div 
+              className="kpi-card gastronomia-card interactive-link"
+              onClick={() => setActiveSubTab('gastronomia')}
+              role="button"
+              tabIndex={0}
+              title="Abrir sección de Restaurantes & Bares"
+            >
+              <div className="kpi-header">
+                <span className="kpi-label">Restaurantes & Bares</span>
+                <Utensils size={18} className="kpi-icon text-amber" />
+              </div>
+              <div className="kpi-dual-values">
+                <div className="kpi-ars-highlight">{formatCurrencyARS(gastronomiaTotalARS)}</div>
+                <div className="kpi-usd-sub">≈ ${(gastronomiaTotalARS / safeRate).toFixed(1)} USD Blue</div>
+              </div>
+              <div className="kpi-quick-nav-pill">
+                <span>🍽️ Ver Bares & Restos →</span>
               </div>
             </div>
 
@@ -607,14 +677,23 @@ export default function BudgetTracker({
               </div>
             </div>
 
-            <div className="kpi-card transport-card">
+            <div 
+              className="kpi-card transport-card interactive-link"
+              onClick={() => setActiveSubTab('transporte')}
+              role="button"
+              tabIndex={0}
+              title="Abrir sección de Transporte & SUBE"
+            >
               <div className="kpi-header">
                 <span className="kpi-label">Transporte & SUBE</span>
-                <Bus size={18} className="kpi-icon" />
+                <Bus size={18} className="kpi-icon text-sky" />
               </div>
               <div className="kpi-dual-values">
                 <div className="kpi-ars-highlight">{formatCurrencyARS(transporteTotalARS)}</div>
                 <div className="kpi-usd-sub">≈ ${(transporteTotalARS / safeRate).toFixed(1)} USD Blue</div>
+              </div>
+              <div className="kpi-quick-nav-pill">
+                <span>🚇 Ver Transporte →</span>
               </div>
             </div>
           </div>
@@ -851,6 +930,14 @@ export default function BudgetTracker({
                         <div className="expense-details">
                           <div className="expense-concept-row">
                             <span className="expense-concept">{exp.concept}</span>
+                            {exp.items && exp.items.length > 0 && (
+                              <span 
+                                className="expense-items-pill-tag" 
+                                title={exp.items.map(i => `• ${i.name}: ${formatCurrencyARS(i.price || 0)}`).join('\n')}
+                              >
+                                🛍️ {exp.items.length} {exp.items.length === 1 ? 'artículo' : 'artículos'}
+                              </span>
+                            )}
                             {exp.isFromItinerary && (
                               <span className="itinerary-source-pill">
                                 📅 Día {exp.dayNumber} · Itinerario

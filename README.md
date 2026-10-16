@@ -83,3 +83,9 @@ npm run dev
 # Compilar para producción
 npm run build
 ```
+
+---
+
+## 📐 Documentación Técnica y Arquitectura
+
+* Consulta la [Guía Maestra de Refactorización y Arquitectura](./ARCHITECTURE_MIGRATION_PLAN.md) para el plan de migración progresiva a TypeScript, microcomponentes y el modelo de datos de Supabase.
