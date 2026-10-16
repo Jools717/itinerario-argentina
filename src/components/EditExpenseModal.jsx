@@ -107,8 +107,6 @@ export default function EditExpenseModal({
     onSave(updated);
     onClose();
   };
-    onClose();
-  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
